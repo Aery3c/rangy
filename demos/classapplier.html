@@ -43,6 +43,10 @@
         function togglePinkLink() {
             pinkLinkApplier.toggleSelection();
         }
+        
+        function applyToRange() {
+            boldRedApplier.applyToRange(rangy.getSelection().getRangeAt(0));
+        }
 
         window.onload = function() {
             rangy.init();
@@ -89,6 +93,12 @@
                     togglePinkLink();
                     return false;
                 };
+
+                var applyToRangeButton = gEBI("applyToRange");
+                applyToRangeButton.ontouchstart = applyToRangeButton.onmousedown = function() {
+                    applyToRange();
+                    return false;
+                }
             }
         };
 
@@ -108,6 +118,9 @@
         <br>
         <input type="button" disabled id="togglePinkLinkButton" value="Toggle pink link"
                unselectable="on" class="unselectable">
+
+        <input type="button" id="applyToRange" value="applyToRange"
+               unselectable="on" class="applyToRange">
     </div>
 
     <div id="content">

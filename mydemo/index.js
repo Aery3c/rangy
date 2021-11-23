@@ -82,6 +82,8 @@ function splitDataNode(node, index, positionsToPreserve) {
  */
 function getEffectiveTextNodes(range) {
   var nodes = getNodes(range, [3]);
+
+  return nodes;
 }
 
 /**
@@ -119,12 +121,27 @@ function getNodesInRange(range, nodeTypes, filter) {
     nodes.push(node);
   });
 
-  console.log(nodes);
+  return nodes;
 
 }
 
+/**
+ * 
+ * @param {array} arr 
+ * @param {() => void} func 
+ */
+function forEach(arr, func) {
+  if ([].forEach) {
+    arr.forEach(func);
+  } else {
+    for (var i = 0, len = arr.length; i < len; ++i) {
+      func(arr[i], i);
+    }
+  }
+}
+
 function start(range) {
-  var range = init();
+  var range = range ? range : init();
   const positionsToPreserve = getRangeBoundaries([range]);
   var sc = range.startContainer, so = range.startOffset, ec = range.endContainer, eo = range.endOffset;
   const startEndSame = (sc === ec);
@@ -133,22 +150,73 @@ function start(range) {
   if (startEndSame) {
     eo -= so;
     ec = sc;
-  } else {
+  } else if (ec == sc.parentNode && so >= getNodeLength(sc)) {
     console.log('other case');
+    eo++;
     debugger;
   }
   so = 0;
   updateNativeRange(range, sc, so, ec, eo);
-  // getEffectiveTextNodes(range);
-  const textNodes = [sc];
-  if (textNodes.length) {
-    textNodes.forEach(function(textNode) {
+  const textNodes = getEffectiveTextNodes(range);
+  forEach(textNodes, function(textNode) {
+    if (!getSelfOrAncestorWithClass(textNode)) {
       applyToTextNode(textNode);
-    });
-  }
+    }
+  })
 
   updateNativeRange(range, sc, so, ec, eo);
 
+}
+
+/**
+ * 
+ * @param {CharacterData[]} textNodes 
+ * @param {Range} range 
+ * @param {boolean} isUndo 
+ */
+function postApply(textNodes, range, isUndo) {
+  var firstNode = textNodes[0], lastNode = textNodes[textNodes.length - 1];
+  
+}
+
+/**
+ * 
+ * @param {Node} node
+ * @returns {Node | null} 
+ */
+function getSelfOrAncestorWithClass(node) {
+  var n = node;
+  while (n) {
+    if (applierHasClass(n)) {
+      return n;
+    }
+
+    n = n.parentNode;
+  }
+
+  return null;
+}
+
+/**
+ * 
+ * @param {Node} node
+ * @returns {boolean} 
+ */
+function applierHasClass(node) {
+  return node.nodeType == 1 && hasClass(node, 'boldRed');
+}
+
+/**
+ * 
+ * @param {Element} el 
+ * @param {string} className 
+ */
+function hasClass(el, className) {
+  if (typeof el.classList == 'object') {
+    return el.classList.contains(className);
+  } else {
+    debugger;
+  }
 }
 
 
@@ -213,12 +281,11 @@ function updateNativeRange(range, startContainer, startOffset, endContainer, end
   }
 }
 
-// document.querySelector('#myself').addEventListener('click', function() {
-//   const range = window.getSelection().getRangeAt(0);
-//   start(range);
-//   console.log(range);
-// }, false);
-start();
+document.querySelector('#myself').addEventListener('click', function() {
+  const range = window.getSelection().getRangeAt(0);
+  start(range);
+}, false);
+// start();
 
 
 
@@ -228,7 +295,7 @@ start();
 document.querySelector('#myself').addEventListener('click', function() {
   /** test RangeIterator */
   const range = window.getSelection().getRangeAt(0);
-  getEffectiveTextNodes(range);
+  // getEffectiveTextNodes(range);
 }, false);
 
 /**
@@ -302,9 +369,47 @@ RangeIterator.prototype = {
     } else {
       // So let's start here
       subRange = document.createRange();
+      var current = this._current;
+      var startContainer = current, startOffset = 0, endContainer = current, endOffset = getNodeLength(current);
+
+      if (isOrIsAncestorOf(current, this.sc)) {
+        startContainer = this.sc;
+        startOffset = this.so;
+      }
+
+      if (isOrIsAncestorOf(current, this.ec)) {
+        endContainer = this.ec;
+        endOffset = this.eo;
+      }
+      
+      updateNativeRange(subRange, startContainer, startOffset, endContainer, endOffset);
     }
+
+    return new RangeIterator(subRange, this.clonePartiallySelectedTextNodes);
+  },
+  
+  detach: function() {
+    this.range = this._current = this._next = this._first = this._last = this.sc = this.so = this.ec = this.eo = null;
   }
 
+}
+
+/**
+ * 
+ * @param {Node} node
+ * @returns {number} 
+ */
+function getNodeLength(node) {
+  switch(node.nodeType) {
+    case 7:
+    case 10:
+      return 0;
+    case 3:
+    case 8:
+      return node.length;
+    default:
+      return node.childNodes.length;
+  }
 }
 
 /**
@@ -341,7 +446,11 @@ function iterateSubtree(rangeIterator, func, iteratorState) {
         return;
       } else {
         subRangeIterator = rangeIterator.getSubtreeIterator();
-        debugger;
+        iterateSubtree(subRangeIterator, func, iteratorState);
+        subRangeIterator.detach();
+        if (iteratorState.stop) {
+          return;
+        }
       }
     } else {
       it = createIterator(node);
