@@ -92,6 +92,15 @@ It is played by both males and females.
 
 </pre>
 </div>
+  <script src="./log4javascript.js"></script>
+  <script>
+    var appender = new log4javascript.PopUpAppender();
+    log4javascript.getRootLogger().addAppender(appender);
+    var log = log4javascript.getRootLogger();
+    log4javascript.setShowStackTraces(true);
+
+  </script>
+  <script src="./dom.js"></script>
   <script src="./index.js"></script>
 </body>
 
