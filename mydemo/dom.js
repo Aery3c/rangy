@@ -80,11 +80,21 @@
     return node.nodeName;
   }
 
+  /**
+   * 
+   * @param {RangeIterator} iterator 
+   * @param {(node: Node) => void} callback 
+   */
+  function iterateSubtree(iterator, callback) {
+    
+  }
+
   root.dom = Object.assign({}, {
     splitDataNode,
     isCharacterDataNode,
     insertAfert,
-    inspectNode
+    inspectNode,
+    iterateSubtree
   });
 
 })(this)

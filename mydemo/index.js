@@ -1,8 +1,7 @@
 const isCharacterDataNode = dom.isCharacterDataNode;
 const splitDataNode = dom.splitDataNode;
 const insertAfert = dom.insertAfert;
-
-
+const iterateSubtree = dom.iterateSubtree;
 
 /** Range */
 Range.prototype.splitRangeBoundaries = function() {
@@ -53,9 +52,15 @@ Range.prototype.updateBoundaries = function(sc, so, ec, eo) {
 }
 
 
-
 Range.prototype.getNodes = function(nodeTypes, filter) {
-  
+  var filterNodeTypes = !!(nodeTypes && nodeTypes.length), regex;
+  const filterExists = !!filter;
+
+  const nodes = [];
+
+  iterateSubtree(new RangeIterator(this), function(node) {
+
+  });
 }
 
 
@@ -65,7 +70,7 @@ Range.prototype.getNodes = function(nodeTypes, filter) {
 document.querySelector('#myself').addEventListener('click', function() {
   
   const range = window.getSelection().getRangeAt(0);
-  // 让range独立
+  // 分割首尾边界
   range.splitRangeBoundaries();
   range.getNodes([3]);
 
