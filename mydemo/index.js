@@ -59,7 +59,7 @@ Range.prototype.getNodes = function(nodeTypes, filter) {
   const nodes = [];
 
   iterateSubtree(new RangeIterator(this), function(node) {
-
+    console.log(node);
   });
 }
 

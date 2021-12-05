@@ -27,7 +27,7 @@ declare var dom: {
 }
 
 interface RangeIterator {
-
+  next(): Node | null
 }
 
 declare var RangeIterator: {

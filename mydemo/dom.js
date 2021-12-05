@@ -86,7 +86,9 @@
    * @param {(node: Node) => void} callback 
    */
   function iterateSubtree(iterator, callback) {
-    
+    for (var node; node = iterator.next();) {
+      callback(node);
+    }
   }
 
   root.dom = Object.assign({}, {
