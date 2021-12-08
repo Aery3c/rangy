@@ -34,3 +34,8 @@ declare var RangeIterator: {
   prototype: RangeIterator;
   new(range: Range, clonePartiallySelectedTextNodes: boolean): RangeIterator
 }
+
+interface Window {
+  RangeIterator: RangeIterator;
+  dom: dom;
+}

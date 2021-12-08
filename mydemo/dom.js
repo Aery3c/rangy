@@ -2,6 +2,25 @@
 
   /**
    * 
+   * @param {*} node 
+   * @param {*} ancestor 
+   * @param {*} selfIsAncestor 
+   */
+  function getClosestAncestorIn(node, ancestor, selfIsAncestor) {
+    var p, n = selfIsAncestor ? node : node.parentNode;
+    while (n) {
+      p = n.parentNode;
+      if (p == ancestor) {
+        return n;
+      }
+      n = p;
+    }
+
+    return null;
+  }
+
+  /**
+   * 
    * @param {Node} node 
    * @param {number} index
    * @returns {Node} - newNode
@@ -96,7 +115,8 @@
     isCharacterDataNode,
     insertAfert,
     inspectNode,
-    iterateSubtree
+    iterateSubtree,
+    getClosestAncestorIn
   });
 
 })(this)

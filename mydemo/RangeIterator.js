@@ -32,7 +32,13 @@
         this._first = this._last = this._next = this.sc;
         this.isSingleCharacterDataNode = true;
       } else {
-        this._first = this.next = this.sc == root ? 
+        this._first = this.next = (this.sc == root && !dom.isCharacterDataNode(this.sc)) 
+          ? this.sc.childNodes[this.so] : this.sc;
+        this._last = (this.ec == root && !dom.isCharacterDataNode(this.ec))
+          ? this.ec.childNodes[this.eo - 1] : this.ec;
+
+        console.log(this._first, '_first');
+        console.log(this._last, '_last');
       }
     }
 

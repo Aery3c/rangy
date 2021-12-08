@@ -75,3 +75,24 @@ document.querySelector('#myself').addEventListener('click', function() {
   range.getNodes([3]);
 
 }, false);
+
+// 测试迭代对象
+document.querySelector('#test-rangeIterator').addEventListener('click', function() {
+  var range = document.createRange();
+  const startNode = document.querySelector('#A');
+  const endNode = startNode.getElementsByTagName('a')[0]
+  const p = document.getElementsByTagName('p')[1];
+  // console.log(p);
+  // range.selectNodeContents(p);
+  range.setStart(startNode, 0);
+  range.setEnd(endNode, 1);
+  console.log(range)
+  window.getSelection().addRange(range);
+
+  var rangeIterator = new RangeIterator(range, false);
+  console.log(rangeIterator);
+});
+
+var p = document.getElementsByTagName('p')[1];
+var n = document.querySelector('#A').getElementsByTagName('a')[0].firstChild
+console.log(dom.getClosestAncestorIn(n, p, true));

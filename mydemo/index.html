@@ -46,6 +46,8 @@
 
            <input type="button" id="myself" value="myself"
            unselectable="on">
+           <input type="button" id="test-rangeIterator" value="test-rangeIterator"
+           unselectable="on">
 </div>
 
 <div id="content">
@@ -57,6 +59,10 @@
         Please use your mouse and/or keyboard to make selections from the sample content below and use the buttons
         on the left hand size to toggle CSS classes applied to content (now also including images) within the
         selection.
+    </p>
+
+    <p>
+        <b id="A">Associa<a href="https://www.baidu.com">tion</a> football</b>
     </p>
 
     <p>
@@ -92,7 +98,7 @@ It is played by both males and females.
 
 </pre>
 </div>
-  <script src="./log4javascript.js"></script>
+  <!-- <script src="./log4javascript.js"></script> -->
   <script>
     var appender = new log4javascript.PopUpAppender();
     log4javascript.getRootLogger().addAppender(appender);
