@@ -11,7 +11,7 @@ Range.prototype.splitRangeBoundaries = function() {
   // 即使折叠的range也是一个range
   if (isCharacterDataNode(ec) && eo > 0 && eo < ec.length) {
     splitDataNode(ec, eo);
-    log.debug('Split end', dom.inspectNode(ec), eo);
+    console.log('Split end', dom.inspectNode(ec), eo);
   }
 
   if (isCharacterDataNode(sc) && so > 0 && so < sc.length) {
@@ -24,7 +24,7 @@ Range.prototype.splitRangeBoundaries = function() {
       debugger;
     }
     so = 0;
-    log.debug('Split start', dom.inspectNode(sc), so);
+    console.log('Split start', dom.inspectNode(sc), so);
   }
 
   this.setStartAndEnd(sc, so, ec, eo);
@@ -92,7 +92,3 @@ document.querySelector('#test-rangeIterator').addEventListener('click', function
   var rangeIterator = new RangeIterator(range, false);
   console.log(rangeIterator);
 });
-
-var p = document.getElementsByTagName('p')[1];
-var n = document.querySelector('#A').getElementsByTagName('a')[0].firstChild
-console.log(dom.getClosestAncestorIn(n, p, true));

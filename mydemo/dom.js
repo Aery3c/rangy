@@ -1,10 +1,9 @@
-(function(root) { 
-
+(function(root) {
   /**
    * 
-   * @param {*} node 
-   * @param {*} ancestor 
-   * @param {*} selfIsAncestor 
+   * @param {Node} node
+   * @param {Node} ancestor
+   * @param {boolean} selfIsAncestor
    */
   function getClosestAncestorIn(node, ancestor, selfIsAncestor) {
     var p, n = selfIsAncestor ? node : node.parentNode;
@@ -106,8 +105,50 @@
    */
   function iterateSubtree(iterator, callback) {
     for (var node; node = iterator.next();) {
-      callback(node);
+      console.log(iterator.isPartiallySelectedSubtree())
     }
+  }
+
+  /**
+   *
+   * @param {Node} node
+   * @return {number}
+   */
+  function getNodeIndex(node) {
+    var index = 0;
+    while(( node = node.previousSibling )) {
+      ++index
+    }
+    return index;
+  }
+
+  /**
+   *
+   * @param {Node} ancestor
+   * @param {Node} descendant
+   * @return {boolean}
+   */
+  function isOrIsAncestorOf(ancestor, descendant) {
+    return isAncestorOf(ancestor, descendant, true);
+  }
+
+  /**
+   *
+   * @param ancestor
+   * @param descendant
+   * @param selfIsAncestor
+   * @returns {boolean}
+   */
+  function isAncestorOf(ancestor, descendant, selfIsAncestor) {
+    var p = selfIsAncestor ? descendant : descendant.parentNode;
+    while (p) {
+      if (p == ancestor) {
+        return true;
+      } else {
+        p = p.parentNode;
+      }
+    }
+    return false;
   }
 
   root.dom = Object.assign({}, {
@@ -116,7 +157,11 @@
     insertAfert,
     inspectNode,
     iterateSubtree,
-    getClosestAncestorIn
+    getClosestAncestorIn,
+    getNodeIndex,
+    isOrIsAncestorOf,
+    isAncestorOf
   });
 
+  module.export = root.dom;
 })(this)

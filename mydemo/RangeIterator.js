@@ -18,7 +18,7 @@
     constructor(range, clonePartiallySelectedTextNodes) {
       this.range = range;
       this.clonePartiallySelectedTextNodes = clonePartiallySelectedTextNodes;
-
+      console.log(range);
       if (!range.collapsed) {
         this.sc = range.startContainer;
         this.so = range.startOffset;
@@ -32,13 +32,12 @@
         this._first = this._last = this._next = this.sc;
         this.isSingleCharacterDataNode = true;
       } else {
-        this._first = this.next = (this.sc == root && !dom.isCharacterDataNode(this.sc)) 
-          ? this.sc.childNodes[this.so] : this.sc;
+        this._first = this._next = (this.sc == root && !dom.isCharacterDataNode(this.sc))
+          ? root.childNodes[this.so] : dom.getClosestAncestorIn(this.sc, root, false);
         this._last = (this.ec == root && !dom.isCharacterDataNode(this.ec))
-          ? this.ec.childNodes[this.eo - 1] : this.ec;
+          ? root.childNodes[this.eo - 1] : dom.getClosestAncestorIn(this.ec, root, false);
 
-        console.log(this._first, '_first');
-        console.log(this._last, '_last');
+        console.log('_first and _last: ', dom.inspectNode(this._first), dom.inspectNode(this._last));
       }
     }
 
@@ -46,10 +45,13 @@
       const current = this._current = this._next;
       if (current) {
         this._next = current != this._last ? current.nextSibling : null;
-        debugger;
       }
-
       return current;
+    }
+    // 检查当前节点是否有部分被选中
+    isPartiallySelectedSubtree() {
+      const current = this._current;
+
     }
   }
   

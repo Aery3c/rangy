@@ -9,25 +9,23 @@ interface RangeIteratorCallback {
   (currentNode: Node): void;
 }
 
-declare var dom: {
-  /**
-   * 
-   * node is text node
-   */
+interface dom {
   isCharacterDataNode(node: Node): boolean;
-  /**
-   * split node
-   */
   splitDataNode(node: Node, index: number): Node;
-  /**
-   * insertNode insert to precedingNode after
-   */
-  insertAfert(insertNode, precedingNode): Node;
+  insertAfert(insertNode: Node, precedingNode: Node): Node;
   iterateSubtree(iterator: RangeIterator, callbackfn: RangeIteratorCallback): void;
+  getClosestAncestorIn(node: Node, ancestor: Node, selfIsAncestor: boolean): Node | null;
+  inspectNode(node: Node): string;
+  getNodeIndex(node: Node): number;
+  isOrIsAncestorOf(ancestor: Node, descendant: Node): boolean;
+  isAncestorOf(ancestor: Node, descendant: Node): boolean;
 }
 
+declare var dom: dom
+
 interface RangeIterator {
-  next(): Node | null
+  next(): Node | null,
+  isPartiallySelectedSubtree(): boolean;
 }
 
 declare var RangeIterator: {
