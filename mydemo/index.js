@@ -2,7 +2,7 @@ const isCharacterDataNode = dom.isCharacterDataNode;
 const splitDataNode = dom.splitDataNode;
 const insertAfert = dom.insertAfert;
 const iterateSubtree = dom.iterateSubtree;
-
+const RangeIterator = domrange.RangeIterator;
 /** Range */
 Range.prototype.splitRangeBoundaries = function() {
   var sc = this.startContainer, so = this.startOffset, ec = this.endContainer, eo = this.endOffset;
@@ -53,18 +53,28 @@ Range.prototype.updateBoundaries = function(sc, so, ec, eo) {
 
 
 Range.prototype.getNodes = function(nodeTypes, filter) {
-  var filterNodeTypes = !!(nodeTypes && nodeTypes.length), regex;
-  const filterExists = !!filter;
-
+  var filterNodeTypes /** @type {boolean} */ = !!(nodeTypes && nodeTypes.length),
+      /** @type {RegExp | undefiend} */
+      regex
+  if (filterNodeTypes) {
+    regex = new RegExp(`^(${nodeTypes.join('|')})$`);
+  }
   const nodes = [];
 
   iterateSubtree(new RangeIterator(this), function(node) {
-    console.log(node);
+    if (regex && !regex.test(node.nodeType.toString())) {
+      return;
+    }
+
+    if (typeof filter == 'function' && !filter(node)) {
+      return;
+    }
+
+    nodes.push(node);
   });
+
+  return nodes;
 }
-
-
-
 
 /** 操作 */
 document.querySelector('#myself').addEventListener('click', function() {
@@ -72,23 +82,15 @@ document.querySelector('#myself').addEventListener('click', function() {
   const range = window.getSelection().getRangeAt(0);
   // 分割首尾边界
   range.splitRangeBoundaries();
-  range.getNodes([3]);
-
+  textNodes = range.getNodes([3]);
+  console.table(textNodes);
 }, false);
 
-// 测试迭代对象
+// 测试
 document.querySelector('#test-rangeIterator').addEventListener('click', function() {
-  var range = document.createRange();
-  const startNode = document.querySelector('#A');
-  const endNode = startNode.getElementsByTagName('a')[0]
-  const p = document.getElementsByTagName('p')[1];
-  // console.log(p);
-  // range.selectNodeContents(p);
-  range.setStart(startNode, 0);
-  range.setEnd(endNode, 1);
-  console.log(range)
-  window.getSelection().addRange(range);
-
+  var range = window.getSelection().getRangeAt(0);
   var rangeIterator = new RangeIterator(range, false);
-  console.log(rangeIterator);
+  for (let n; n = rangeIterator.next();) {
+    console.log(n);
+  }
 });
