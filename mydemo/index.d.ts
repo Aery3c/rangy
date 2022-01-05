@@ -1,6 +1,32 @@
 interface Range {
-  splitRangeBoundaries(): void;
+  /**
+   * 从range首尾选择的边界开始分割文本节点, 只会处理首尾节点是文本节点的情况.
+   *
+   * 首尾具有相同节点 范围中的文本节点将会是一个新的节点并分离.
+   *
+   * 首尾是不同节点 首尾范围中的文本节点将会是一个新的节点并分离.
+   * @return [sc, ec]
+   */
+  splitRangeBoundaries(): Node[];
+
+  /**
+   * 设置range的边界(start和end).
+   *
+   * 函数内部获取arguments对象. 至少传3个参数 sc = args[0] ec = args[1].
+   *
+   * case args.lengh = 3, so = args[2], eo = args[2].
+   *
+   * case args.length = 4, so = args[2], eo = args[3].
+   */
   setStartAndEnd(): void;
+
+  /**
+   * 更新range的边界, 内部实用setStart和setEnd.
+   * @param sc
+   * @param so
+   * @param ec
+   * @param eo
+   */
   updateBoundaries(sc: Node, so: number, ec: Node, eo: number): void;
   getNodes(nodeTypes: number[], filter?: (node: Node) => boolean): Node[];
 }
@@ -83,18 +109,18 @@ interface dom {
 }
 
 interface Window {
-  domrange: domrange;
+  RangeIterator: RangeIterator;
   dom: dom;
 }
 
-interface domrange {
-  RangeIterator: RangeIterator;
-  util: {
-    isNonTextPartiallySelected(node: Node, range: Range): boolean;
-  }
-}
+// interface domrange {
+//   RangeIterator: RangeIterator;
+//   util: {
+//     isNonTextPartiallySelected(node: Node, range: Range): boolean;
+//   }
+// }
 
-declare var domrange: domrange;
+// declare var domrange: domrange;
 
 declare var dom: dom
 
