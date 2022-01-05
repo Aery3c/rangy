@@ -31,7 +31,9 @@
     "directories": {
         "lib": "./lib"
     },
-    "dependencies": {},
+    "dependencies": {
+        "cheerio": "^1.0.0-rc.10"
+    },
     "devDependencies": {
         "jest": "^27.4.3"
     },

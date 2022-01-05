@@ -53,11 +53,31 @@ interface dom {
    * @param callbackfn 每一次迭代完成后执行的回调函数.
    */
   iterateSubtree(iterator: RangeIterator, callbackfn: RangeIteratorCallback): void;
+
+  /**
+   * 返回node最接近ancestor的祖先元素.
+   * @param node 当前节点
+   * @param ancestor 祖先节点
+   * @param selfIsAncestor 如果是true 那么从node开始 false则从node.parent开始
+   */
   getClosestAncestorIn(node: Node, ancestor: Node, selfIsAncestor: boolean): Node | null;
   inspectNode(node: Node): string;
   getNodeIndex(node: Node): number;
+
+  /**
+   * 返回布尔值, 如果ancestor是descendant是祖先节点, 返回true, 否则返回false.
+   * @param ancestor 祖先节点.
+   * @param descendant 后代节点.
+   */
   isOrIsAncestorOf(ancestor: Node, descendant: Node): boolean;
-  isAncestorOf(ancestor: Node, descendant: Node): boolean;
+
+  /**
+   * 跟isOrIsAncestorOf相同 但多了第三个参数是一个布尔值 指示是从descendant还是descendant.parent开始
+   * @param ancestor 祖先节点
+   * @param descendant 后代节点
+   * @param selfIsAncestor 如果true 从descendant开始 否则从descendant.parent开始
+   */
+  isAncestorOf(ancestor: Node, descendant: Node, selfIsAncestor: boolean): boolean;
   getNodeLength(node: Node): number;
   gEBI(id: string): Node;
 }
