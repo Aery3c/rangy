@@ -30,7 +30,7 @@
     // 即使折叠的range也是一个range
     if (isCharacterDataNode(ec) && eo > 0 && eo < ec.length) {
       splitDataNode(ec, eo);
-      console.log('Split end', dom.inspectNode(ec), eo);
+      console.log('Split end', dom.inspectNode(ec), 'offset = ', eo);
     }
 
     if (isCharacterDataNode(sc) && so > 0 && so < sc.length) {
@@ -43,7 +43,7 @@
         debugger;
       }
       so = 0;
-      console.log('Split start', dom.inspectNode(sc), so);
+      console.log('Split start', dom.inspectNode(sc), 'offset = ', so);
     }
 
     this.setStartAndEnd(sc, so, ec, eo);
@@ -94,6 +94,17 @@
     });
 
     return nodes;
+  }
+
+  Range.prototype.highlight = function() {
+    // 分割首尾边界.
+    this.splitRangeBoundaries();
+    // 返回范围包裹的所有文本节点.
+    const textNodes = this.getNodes([3]);
+
+    if (textNodes.length) {
+
+    }
   }
 
   return Range;
