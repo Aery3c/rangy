@@ -6,14 +6,13 @@ document.querySelector('#myself').addEventListener('click', function() {
   // 自定义Range
   // range = document.createRange();
   // let startNode = document.querySelector('.pinkLink').childNodes[0];
-  // let endNode = document.querySelector('.pinkLink');
+  // let endNode = document.querySelector('.pinkLink').parentNode.querySelector('a');
+  // console.log(endNode);
   // range.setStart(startNode, 0);
   // range.setEnd(endNode, 0);
   // console.log(range);
-  // 分割首尾边界
-  range.splitRangeBoundaries();
-  // textNodes = range.getNodes([3]);
-  // console.table(textNodes);
+  range.highlight();
+
 }, false);
 
 // 测试
