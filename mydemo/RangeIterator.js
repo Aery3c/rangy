@@ -58,7 +58,7 @@
           this.eo = range.endOffset;
           const root = range.commonAncestorContainer;
 
-          // 初始化遍历对象
+          // 初始化迭代对象
           if (this.sc == this.ec && dom.isCharacterDataNode(this.sc)) {
             // 文本节点 且不跨标签
             this._first = this._last = this._next = this.sc;
