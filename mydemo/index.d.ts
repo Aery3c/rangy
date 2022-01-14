@@ -37,7 +37,15 @@ interface Range {
    */
   getNodes(nodeTypes: number[], filter?: (node: Node) => boolean): Node[];
 
-  highlight(className?: string, options?: {}): void;
+  /**
+   * 高亮当前选中的范围
+   */
+  highlight(): void;
+
+  /**
+   *
+   */
+  intersection(): void;
 }
 
 interface RangeIterator {
