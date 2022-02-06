@@ -26,6 +26,10 @@
           color: #f66;
           font-size: 1.2em;
       }
+
+      *.highlight {
+          background-color: yellow;
+      }
   </style>
 </head>
 
@@ -39,7 +43,7 @@
            class="unselectable">
     <br>
     <input type="button" disabled id="toggleItalicYellowBgButton" value="Toggle italic and yellow bg"
-           unselectable="on" class="unselectable">
+           unselectable="on" class="unselectable 123">
     <br>
     <input type="button" disabled id="togglePinkLinkButton" value="Toggle pink link"
            unselectable="on" class="unselectable">
@@ -66,7 +70,7 @@
     </p>
 
     <p>
-        <b>Association football</b> is a sport played between two teams. It is usually called
+        <b>Association  football</b> is a sport played between two teams. It is usually called
         <b class="pinkLink">football</b>, but in some countries, such as the United States, it is called
         <b>soccer</b>. In <a href="http://simple.wikipedia.org/wiki/Japan">Japan</a>, New Zealand, South Africa,
         Australia, Canada and Republic of Ireland, both words are commonly used.
@@ -100,49 +104,13 @@ It is played by both males and females.
 </div>
   <!-- <script src="./log4javascript.js"></script> -->
   <script>
-    // var appender = new log4javascript.PopUpAppender();
-    // log4javascript.getRootLogger().addAppender(appender);
-    // var log = log4javascript.getRootLogger();
-    // log4javascript.setShowStackTraces(true);
+    const el = document.querySelector('#toggleItalicYellowBgButton');
+    console.log(el.classList);
 
-    var __extends = (this && this.__extends) || (function () {
-      var extendStatics = function (d, b) {
-        extendStatics = Object.setPrototypeOf ||
-          ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-          function (d, b) { for (var p in b) if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p]; };
-        return extendStatics(d, b);
-      };
-      return function (d, b) {
-        if (typeof b !== "function" && b !== null)
-          throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
-        extendStatics(d, b);
-        function __() { this.constructor = d; }
-        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-      };
-    })();
-    var B = /** @class */ (function () {
-      function B() {
-        this.b = 'b';
-      }
-      B.prototype.run = function () {
-        console.log(1);
-      };
-      return B;
-    }());
-    var A = /** @class */ (function (_super) {
-      __extends(A, _super);
-      function A() {
-        var _this = _super.call(this) || this;
-        _this.a = 'a';
-        return _this;
-      }
-      return A;
-    }(B));
-    var a = new A();
-    // a.run();
   </script>
-  <script src="./interim.js"></script>
+<!--  <script src="./interim.js"></script>-->
   <script src="./dom.js"></script>
+  <script src="./Highlighter.js"></script>
   <script src="./RangeIterator.js"></script>
   <script src="./Range.js"></script>
   <script src="./index.js"></script>

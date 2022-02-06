@@ -14,7 +14,7 @@
 })(
   /**
    *
-   * @param dom
+   * @param {dom} dom
    * @param RangeIterator
    * @return {{prototype: Range, new(): Range, readonly END_TO_END: number, readonly END_TO_START: number, readonly START_TO_END: number, readonly START_TO_START: number, toString(): string}}
    */
@@ -22,6 +22,51 @@
     const isCharacterDataNode = dom.isCharacterDataNode;
     const splitDataNode = dom.splitDataNode;
     const iterateSubtree = dom.iterateSubtree;
+
+    /**
+     *
+     * @param {Range} rangeA
+     * @param {Range} rangeB
+     * @param {boolean} touchingIsIntersecting
+     */
+    function rangesIntersect(rangeA, rangeB, touchingIsIntersecting) {
+
+      const startComparison = rangeA.compareBoundaryPoints(Range.END_TO_START, rangeB);
+      const endComparison = rangeB.compareBoundaryPoints(Range.START_TO_END, rangeB);
+
+      return startComparison < 0 && endComparison > 0;
+    }
+
+    /**
+     *
+     * @param {Range} range
+     * @param {CharacterData} textNode
+     * @return boolean
+     */
+    function rangeSelectsAnyText(range, textNode) {
+      const textNodeRange = range.cloneRange();
+      textNodeRange.selectNodeContents(textNode);
+      textNodeRange.intersection(range);
+      return false;
+    }
+
+    /**
+     * 从range获取有效的文本节点.
+     *
+     * 有效的文本节点: 补充
+     * @param {Range} range
+     * @return CharacterData[]
+     */
+    function getEffectiveTextNodes(range) {
+      const textNodes = range.getNodes([3]);
+      let start = 0, node;
+      while((node = textNodes[start]) && !rangeSelectsAnyText(range, node)) {
+        console.log('rangeSelectsAnyText dispatch success');
+        ++start;
+      }
+
+      return textNodes;
+    }
 
     Range.prototype.splitRangeBoundaries = function() {
       var sc = this.startContainer, so = this.startOffset, ec = this.endContainer, eo = this.endOffset;
@@ -95,24 +140,44 @@
       return nodes;
     }
 
-    Range.prototype.highlight = function() {
-      const range = /** @type {Range} */ this;
+    Range.prototype.addHighlighter = function(highlighter) {
+      this.highlighterBox[highlighter.className] = highlighter;
+    }
+
+    Range.prototype.pickHighlighter = function(highlighterName) {
+      if (highlighterName && highlighterName in this.highlighterBox) {
+        return this.highlighterBox[highlighterName];
+      }
+
+      return this.highlighterBox['highlight'];
+    }
+
+    Range.prototype.highlight = function(className) {
+      const highlighter = this.pickHighlighter(className);
       // 分割首尾边界.
-      range.splitRangeBoundaries();
+      this.splitRangeBoundaries();
       // 返回范围包裹的所有文本节点.
-      const textNodes = getEffectiveTextNodes(range);
+      const textNodes = getEffectiveTextNodes(this);
       // 用span把每个文本节点包裹起来
       textNodes.forEach(function(textNode) {
-        applyToTextNode(textNode);
+        if (!dom.getSelfOrAncestorWithClass(textNode, highlighter.className)) {
+          highlighter.applyToTextNode(textNode);
+        }
       });
     }
 
-    Range.prototype.intersection = function () {
+    Range.prototype.intersection = function (sourceRange) {
+      if (this.intersectsRange(sourceRange)) {
 
+      }
     }
 
-    Range.prototype.intersectsRange = function() {
+    Range.prototype.intersectsRange = function(sourceRange) {
+      return rangesIntersect(this, sourceRange, false);
+    }
 
+    Range.prototype.highlighterBox = {
+      'highlight': new Highlighter('highlight', {})
     }
 
     return Range;

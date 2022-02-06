@@ -206,6 +206,84 @@
     return document.getElementById(id);
   }
 
+  /**
+   *
+   * @param nodeA
+   * @param offsetA
+   * @param nodeB
+   * @param offsetB
+   * @return {number|number}
+   */
+  function comparePoints(nodeA, offsetA, nodeB, offsetB) {
+    // See http://www.w3.org/TR/DOM-Level-2-Traversal-Range/ranges.html#Level-2-Range-Comparing
+    var nodeC, root, childA, childB, n;
+    if (nodeA == nodeB) {
+      // Case 1: nodes are the same
+      return offsetA === offsetB ? 0 : (offsetA < offsetB) ? -1 : 1;
+    } else if ( (nodeC = getClosestAncestorIn(nodeB, nodeA, true)) ) {
+      // Case 2: node C (container B or an ancestor) is a child node of A
+      return offsetA <= getNodeIndex(nodeC) ? -1 : 1;
+    } else if ( (nodeC = getClosestAncestorIn(nodeA, nodeB, true)) ) {
+      // Case 3: node C (container A or an ancestor) is a child node of B
+      return getNodeIndex(nodeC) < offsetB  ? -1 : 1;
+    } else {
+      root = getCommonAncestor(nodeA, nodeB);
+      if (!root) {
+        throw new Error("comparePoints error: nodes have no common ancestor");
+      }
+
+      // Case 4: containers are siblings or descendants of siblings
+      childA = (nodeA === root) ? root : getClosestAncestorIn(nodeA, root, true);
+      childB = (nodeB === root) ? root : getClosestAncestorIn(nodeB, root, true);
+
+      if (childA === childB) {
+        // This shouldn't be possible
+        throw module.createError("comparePoints got to case 4 and childA and childB are the same!");
+      } else {
+        n = root.firstChild;
+        while (n) {
+          if (n === childA) {
+            return -1;
+          } else if (n === childB) {
+            return 1;
+          }
+          n = n.nextSibling;
+        }
+      }
+    }
+  }
+
+  /**
+   *
+   * @param {Node} node
+   * @param {string} className
+   * @return {null}
+   */
+  function getSelfOrAncestorWithClass(node, className) {
+    while(node) {
+      if (hasClass(node, className)) {
+        return node;
+      }
+      node = node.parent;
+    }
+
+    return null
+  }
+
+  /**
+   *
+   * @param {HTMLElement} el
+   * @param {string} className
+   * @return {boolean}
+   */
+  function hasClass(el, className) {
+    return el.classList.contains(className);
+  }
+
+  function getCurrentRange() {
+    const sel = window.getSelection();
+  }
+
   return {
     splitDataNode,
     isCharacterDataNode,
@@ -217,7 +295,11 @@
     isOrIsAncestorOf,
     isAncestorOf,
     getNodeLength,
-    gEBI
+    gEBI,
+    comparePoints,
+    getSelfOrAncestorWithClass,
+    hasClass,
+    getCurrentRange
   }
 
 }, this);
