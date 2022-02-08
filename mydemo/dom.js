@@ -280,8 +280,97 @@
     return el.classList.contains(className);
   }
 
-  function getCurrentRange() {
-    const sel = window.getSelection();
+  /**
+   *
+   * @param {string} fullClassName - 完整的
+   * @param {string} className
+   * @return {boolean}
+   */
+  function classNameContainsClass(fullClassName, className) {
+    return !!fullClassName && new RegExp('(?:^|\\s)' + className + '(?:\\s|$)');
+  }
+
+  /**
+   *
+   * @param {Element} el
+   * @param {string} className
+   */
+  function addClass(el, className) {
+    if (typeof el.classList === 'object') {
+      el.classList.add(className)
+    } else {
+      const classNameSupported = (typeof el.className === 'string');
+      let elClass = classNameSupported ? el.className : el.getAttribute('class');
+
+      if (elClass) {
+        if (!classNameContainsClass(elClass, className)) {
+          elClass += ' ' + className
+        }
+      } else {
+        elClass = className;
+      }
+
+      if (classNameSupported) {
+        el.className = elClass;
+      } else {
+        el.setAttribute('class', elClass);
+      }
+
+    }
+  }
+
+  /**
+   *
+   * @param {Element} el
+   * @return {string | null}
+   */
+  function getClass(el) {
+    const classNameSupported = (typeof el.className === 'string');
+    return classNameSupported ? el.className : el.getAttribute('class');
+  }
+
+  /**
+   *
+   * @param {Element} el1
+   * @param {Element} el2
+   * @return {boolean}
+   */
+  function haveSameClasses(el1, el2) {
+    return sortClassName(getClass(el1)) === sortClassName(getClass(el2));
+  }
+
+  /**
+   *
+   * @param {string} className
+   * @return {string}
+   */
+  function sortClassName(className) {
+    return className && className.split(/\s+/).sort().join(" ");
+  }
+
+  /**
+   *
+   * @param {Element} el
+   * @param {string} propName
+   */
+  function getComputedStyleProperty(el, propName) {
+    return window.getComputedStyle(el, null).getPropertyValue(propName);
+  }
+
+  function elementsHaveSameNonClassAttributes(el1, el2) {
+    // console.log(el1.attributes);
+    if (el1.attributes.length !== el2.attributes.length) return false;
+    for (let i = 0, len = el1.attributes.length, attr1, attr2, name; i < len; ++i) {
+      attr1 = /** @type {Attr} */ el1.attributes[i];
+      name = attr1.name;
+      if (name !== 'class') {
+        attr2 = el2.attributes.getNamedItem(name);
+        if (attr2 === null) return false;
+        if (attr1.specified !== attr2.specified) return false;
+        if (attr1.specified && attr1.nodeValue !== attr2.nodeValue) return false;
+      }
+    }
+    return true;
   }
 
   return {
@@ -299,7 +388,12 @@
     comparePoints,
     getSelfOrAncestorWithClass,
     hasClass,
-    getCurrentRange
+    addClass,
+    classNameContainsClass,
+    haveSameClasses,
+    getClass,
+    getComputedStyleProperty,
+    elementsHaveSameNonClassAttributes
   }
 
 }, this);
