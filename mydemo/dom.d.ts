@@ -119,12 +119,58 @@ interface dom {
 
   /**
    * 如果node包含class, 返回true, 否则false.
-   * @param node
+   * @param el
    * @param className
    */
   hasClass(el: Element, className: string): boolean;
 
-  getCurrentRange(): Range | null
+  /**
+   * el add className.
+   * @param el
+   * @param className
+   */
+  addClass(el: Element, className: string): void;
+
+  /**
+   * fullClassName 是否包含 className
+   * @param fullClassName
+   * @param className
+   */
+  classNameContainsClass(fullClassName: string, className: string): boolean;
+
+  /**
+   * 两个元素是否具有相同的class.
+   * @param el1
+   * @param el2
+   */
+  haveSameClasses(el1: Element, el2: Element): boolean;
+
+  /**
+   * 将元素的class排序后返回
+   * @param className
+   */
+  sortClassName(className: string): string;
+
+  /**
+   * 获取元素的class
+   * @param el
+   */
+  getClass(el: Element): string;
+
+  getComputedStyleProperty(el: Element, propName: string): string;
+
+  /**
+   * 检查el1 和 el2 的Attr.
+   *
+   * attributes的长度不同 返回false
+   *
+   * Attr.specified不同 返回false
+   *
+   * Attr.nodeValue不同 返回false
+   * @param el1
+   * @param el2
+   */
+  elementsHaveSameNonClassAttributes(el1: Element, el2: Element): boolean;
 }
 
 declare var dom: dom
