@@ -160,7 +160,7 @@ interface dom {
   getComputedStyleProperty(el: Element, propName: string): string;
 
   /**
-   * 检查el1 和 el2 的Attr.
+   * 对比el1 和 el2 的属性节点
    *
    * attributes的长度不同 返回false
    *
@@ -171,6 +171,20 @@ interface dom {
    * @param el2
    */
   elementsHaveSameNonClassAttributes(el1: Element, el2: Element): boolean;
+
+  /**
+   * 从dom中删除这个节点 并返回被删除的这个节点
+   *
+   * @param node
+   */
+  removeNode(node: Node): Node;
+
+  /**
+   * 获取node的祖先元素 如果祖先元素的class等于className
+   * @param node
+   * @param className
+   */
+  getSelfOrAncestorWithClass(node: Node, className: string): Node | null;
 }
 
 declare var dom: dom
