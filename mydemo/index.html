@@ -30,7 +30,12 @@
       *.highlight {
           background-color: yellow;
       }
+      #empty {
+          white-space: pre;
+      }
   </style>
+  <script src="../src/modules/rangy-classapplier.js"></script>
+  <script src="dom.js"></script>
 </head>
 
 <body>
@@ -56,7 +61,7 @@
 
 <div id="content">
     <h1>Rangy CSS Class Applier Module Demo</h1>
-
+    <span id="empty">1&#x0020;    111</span>
     <!-- A comment -->
 
     <p id="intro">
@@ -104,8 +109,6 @@ It is played by both males and females.
 </div>
   <!-- <script src="./log4javascript.js"></script> -->
   <script>
-    const el = document.querySelector('#toggleItalicYellowBgButton');
-    console.log(el.classList);
 
   </script>
 <!--  <script src="./interim.js"></script>-->
