@@ -98,7 +98,7 @@
 
       /**
        *
-       * @param {Node[]} textNodes
+       * @param {CharacterData[]} textNodes
        * @param {Range} range
        * @param {boolean} isUndo
        */
@@ -108,9 +108,9 @@
         const merges = [];
         let currentMerge;
 
-        const rangeStartNode = firstNode, rangeEndNode = lastNode;
+        let rangeStartNode = firstNode, rangeEndNode = lastNode;
 
-        const rangeStartOffset = 0, rangeEndOffset = lastNode.length;
+        let rangeStartOffset = 0, rangeEndOffset = lastNode.length;
 
         let textNode, precedingTextNode;
 
@@ -118,11 +118,94 @@
         textNodes.forEach(textNode => {
           precedingTextNode = getPreviousMergeableTextNode(textNode, !isUndo);
           if (precedingTextNode) {
+            if (!currentMerge) {
+              currentMerge = new Merge(precedingTextNode);
+              merges.push(currentMerge);
+            }
 
+            currentMerge.textNodes.push(textNode);
+            if (textNode === firstNode) {
+              rangeStartNode = currentMerge.textNodes[0];
+              rangeStartOffset = rangeStartNode.length;
+            }
+
+            if (textNode === lastNode) {
+              rangeEndNode = currentMerge.textNodes[0];
+              rangeEndOffset = currentMerge.getLength();
+            }
+          } else {
+            currentMerge = null;
           }
         });
+
+        // 测试范围后的第一个节点是否需要合并
+        const nextTextNode = getNextMergeableTextNode(lastNode, !isUndo);
+
+        if (nextTextNode) {
+          if (!currentMerge) {
+            currentMerge = new Merge(lastNode);
+            merges.push(currentMerge);
+          }
+          currentMerge.textNodes.push(nextTextNode);
+        }
+
+        // Apply to merges
+        merges.forEach(merge => {
+          merge.doMerge();
+        });
+
+        range.setStartAndEnd(rangeStartNode, rangeStartOffset, rangeEndNode, rangeEndOffset);
       }
 
+
+
+    }
+
+    class Merge {
+      /**
+       *
+       * @param {Node} firstNode
+       */
+      constructor(firstNode) {
+        this.isElementMerge = (firstNode.nodeType === 1);
+        this.textNodes = [];
+        const firstTextNode = (this.isElementMerge ? firstNode.lastChild : firstNode);
+        if (firstNode) {
+          this.textNodes[0] = firstTextNode;
+        }
+      }
+
+      getLength() {
+        let i = this.textNodes.length, len = 0;
+        while (i--) {
+          len += this.textNodes[i].length
+        }
+
+        return len;
+      }
+
+      doMerge() {
+        const textNodes = this.textNodes;
+        const firstTextNode = textNodes[0];
+        if (textNodes.length > 1) {
+          const firstTextNodeIndex = dom.getNodeIndex(firstTextNode);
+          let textParts = [], combinedTextLength = 0, textNode, parent;
+          textNodes.forEach((textNode, index) => {
+            parent = textNode.parentNode;
+            if (index > 0) {
+              parent.removeChild(textNode);
+              if (!parent.hasChildNodes()) {
+                dom.removeNode(parent);
+              }
+            }
+
+            textParts[index] = textNode.data;
+          });
+          firstTextNode.data = textParts.join('');
+        }
+
+        return firstTextNode.data;
+      }
     }
 
     class Highlighter {
@@ -134,21 +217,32 @@
         // 如何涂抹 生成Mark对象
         const sel = window.getSelection();
         if (sel.rangeCount) {
-          const mark = new Mark(this.name);
           const range = sel.getRangeAt(sel.rangeCount - 1);
+          const mark = new Mark(this.name);
           // 分割边界
           range.splitRangeBoundaries();
 
           const textNodes = range.getNodes([3]);
 
           textNodes.forEach(textNode => {
-            mark.applyToTextNode(textNode);
+            if (!dom.getSelfOrAncestorWithClass(textNode, this.name)) {
+              mark.applyToTextNode(textNode);
+            }
           });
 
           const lastTextNode = textNodes[textNodes.length - 1];
           range.setStartAndEnd(textNodes[0], 0, lastTextNode, lastTextNode.length);
 
           mark.postApply(textNodes, range, false);
+
+
+
+        }
+      }
+
+      unapply() {
+        const sel = window.getSelection();
+        if (sel.rangeCount) {
 
         }
       }
