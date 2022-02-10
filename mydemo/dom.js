@@ -261,10 +261,10 @@
    */
   function getSelfOrAncestorWithClass(node, className) {
     while(node) {
-      if (hasClass(node, className)) {
+      if (node.nodeType === Node.ELEMENT_NODE && hasClass(node, className)) {
         return node;
       }
-      node = node.parent;
+      node = node.parentNode;
     }
 
     return null
@@ -272,7 +272,7 @@
 
   /**
    *
-   * @param {HTMLElement} el
+   * @param {Element} el
    * @param {string} className
    * @return {boolean}
    */
@@ -373,6 +373,14 @@
     return true;
   }
 
+  /**
+   *
+   * @param {Node} node
+   */
+  function removeNode(node) {
+    return node.parentNode.removeChild(node);
+  }
+
   return {
     splitDataNode,
     isCharacterDataNode,
@@ -393,7 +401,8 @@
     haveSameClasses,
     getClass,
     getComputedStyleProperty,
-    elementsHaveSameNonClassAttributes
+    elementsHaveSameNonClassAttributes,
+    removeNode
   }
 
 }, this);
