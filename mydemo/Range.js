@@ -172,6 +172,10 @@
       }
     }
 
+    Range.prototype.getBookMark = function(containerNode) {
+
+    }
+
     Range.prototype.intersectsRange = function(sourceRange) {
       return rangesIntersect(this, sourceRange, false);
     }
