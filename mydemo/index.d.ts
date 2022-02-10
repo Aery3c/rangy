@@ -65,6 +65,12 @@ interface Range {
   }
 
   /**
+   * 获取bookmark对象
+   * @param containerNode
+   */
+  getBookMark<T extends Node>(containerNode: T): BookMark<T>;
+
+  /**
    *
    * @param sourceRange
    */
@@ -75,6 +81,12 @@ interface Range {
    * @param sourceRange
    */
   intersectsRange(sourceRange: Range): boolean;
+}
+
+interface BookMark<T> {
+  start: number;
+  end: number;
+  containerNode: T;
 }
 
 interface RangeIterator {
