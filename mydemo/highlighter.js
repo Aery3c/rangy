@@ -74,8 +74,14 @@
     }
     const nodes = [];
     iterateSubtree(createRangeIterator(range), function(node) {
-      console.log(node);
+      const t = node.nodeType;
+
+      if (regex && regex.test(t)) {
+        nodes.push(node);
+      }
     });
+
+    return nodes;
   }
   /**
    * 执行RangeIterator 将每一次迭代的结果通过回调函数透出
@@ -331,7 +337,8 @@
       if (range.collapsed || range.toString() === '') {
         return !!this.getSelfOrAncestorWithClass(range.commonAncestorContainer);
       } else {
-        const textNodes = range.getNodes([3]);
+        const textNodes = range.getNodes([Node.TEXT_NODE]);
+        console.log(textNodes);
       }
     },
     /**
