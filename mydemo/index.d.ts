@@ -1,6 +1,3 @@
-import type { Highlighter } from './highlighter';
-import type { dom } from './dom';
-
 interface Range {
 
   /**
@@ -9,9 +6,8 @@ interface Range {
    * 首尾具有相同节点 范围中的文本节点将会是一个新的节点并分离.
    *
    * 首尾是不同节点 首尾范围中的文本节点将会是一个新的节点并分离.
-   * @return [sc, ec] 分离出的新的首尾文本节点
    */
-  splitRangeBoundaries(): Node[];
+  splitRangeBoundaries(): void;
 
   /**
    * 设置range的边界(start和end).
@@ -22,7 +18,7 @@ interface Range {
    *
    * case args.length = 4, so = args[2], eo = args[3].
    */
-  setStartAndEnd(): void;
+  setStartAndEnd<T extends Node>(sc?: T, so?: number, ec?: T, eo?: number): void;
 
   /**
    * 更新range的边界, 内部使用setStart和setEnd.
@@ -38,37 +34,7 @@ interface Range {
    * @param nodeTypes 获取的节点类型 一个数组 数组外的类型将全部被过滤掉.
    * @param filter 过滤函数 返回一个布尔值 如果为false则过滤掉.
    */
-  getNodes<T>(nodeTypes: number[], filter?: (node: Node) => boolean): T[];
-
-  /**
-   * 高亮当前选中的范围
-   */
-  highlight(className?: string): Highlighter;
-
-  /**
-   * 放入一支荧光笔到笔盒中
-   * @param highlighter
-   */
-  addHighlighter(highlighter: Highlighter): void;
-
-  /**
-   * 从笔盒中拿出想要的荧光笔 如果没找到 拿出默认的那支
-   * @param highlighterName
-   */
-  pickHighlighter(highlighterName?: string): Highlighter;
-
-  /**
-   * 荧光笔盒
-   */
-  highlighterBox: {
-    [highlighterName: string]: Highlighter
-  }
-
-  /**
-   * 获取bookmark对象
-   * @param containerNode
-   */
-  getBookMark<T extends Node>(containerNode: T): BookMark<T>;
+  getNodes<T>(nodeTypes?: number[], filter?: (node: T) => boolean): T[];
 
   /**
    *
@@ -81,50 +47,52 @@ interface Range {
    * @param sourceRange
    */
   intersectsRange(sourceRange: Range): boolean;
-}
-
-interface BookMark<T> {
-  start: number;
-  end: number;
-  containerNode: T;
-}
-
-interface RangeIterator {
-  /**
-   * 将指针移到下一个节点 返回当前这个节点 直到null为止.
-   */
-  next(): Node | null,
-
-  /**
-   * 判断节点是否被部分选中.
-   *
-   * 部分选中概念: 部分选中的节点只会出现在范围跨标签且节点必须肯定是首尾任意节点的父元素节点.
-   */
-  isPartiallySelectedSubtree(): boolean;
 
   /**
    *
+   * 显示当前range对象的信息, 用于内部调试.
    */
-  getSubtreeIterator(): RangeIterator;
-}
+  inspect(): string;
 
-interface RangeIteratorCallback {
-  (currentNode: Node): void;
-}
-
-interface Window {
-  RangeIterator: RangeIterator;
-  dom: dom;
-}
-
-declare var RangeIterator: {
-  prototype: RangeIterator;
   /**
-   * 创建RangeIterator实例
-   *
-   * 在构造函数中 我们会去初始化迭代对象分配好迭代的起始(_first, _last)位置
-   * @param range
-   * @param clonePartiallySelectedTextNodes
+   * 在当前视窗中查看range
    */
-  new(range: Range, clonePartiallySelectedTextNodes: boolean): RangeIterator
+  inspectOnSelection(): void;
 }
+
+interface Tinter {
+  /**
+   * 将class应用到此范围.
+   */
+  applyToRange(range: Range): void;
+
+  /**
+   * 如果此范围已被class着色, 那么返回true, 否则fasle.
+   */
+  isTinterToRange(range: Range): boolean;
+
+  /**
+   * 从node开始, 遍历向上查询包含这个class的父节点并返回, 完成时没有找到返回null.
+   */
+  getSelfOrAncestorWithClass<T extends Node>(node: T): T | null;
+
+  /**
+   * 如果node包含class返回true, 否则返回false.
+   */
+  hasClass<T extends Node>(node: T): boolean;
+}
+
+interface RangeIterator {}
+
+interface Util {
+  isRangeValid(): boolean;
+  getNodesInRange<T extends Node>(range: Range, nodeTypes?: number[], filter?: (node: T) => boolean): T[];
+}
+
+interface Aery {
+  createTinter(className: string, options: {}): Tinter;
+  createRangeIterator(range: Range): RangeIterator;
+  util: Util
+}
+
+declare var aery: Aery;

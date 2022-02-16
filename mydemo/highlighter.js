@@ -48,6 +48,17 @@
   /** util */
   const util = {}
 
+  /**
+   *
+   * @param {Range} range
+   */
+  function inspectOnSelection(range) {
+    const sel = window.getSelection();
+    if (sel.rangeCount) {
+      sel.removeAllRanges();
+    }
+    sel.addRange(range);
+  }
   function isRangeValid(range) {}
   /**
    * 根据nodeTypes的指示, 获取range中的所有节点
@@ -76,6 +87,7 @@
     while (node = rit.next()) {
       if (rit.isPartiallySelectedSubtree()) {
         subRit = rit.getSubtreeIterator();
+        iterateSubtree(subRit, iterateNextCallBack);
       } else {
         // 执行这里 说明节点是range中间部分的节点 那么采用更高效的NodeIterator
         let n, it = document.createNodeIterator(node, NodeFilter.SHOW_ALL);
@@ -234,9 +246,33 @@
   const rangeProto = {
     splitRangeBoundaries: function() {},
     setStartAndEnd: function() {
+      const args = arguments;
+      let sc = args[0], so = args[1], ec = sc, eo = so;
+      switch (args.length) {
+        case 3:
+          ec = args[2];
+          eo = so;
+          break;
+        case 4:
+          ec = args[2];
+          eo = args[3];
+          break;
+      }
 
+      this.updateBoundaries(sc, so, ec, eo);
     },
-    updateBoundaries: function() {},
+    /**
+     *
+     * @param {Node} sc
+     * @param {number} so
+     * @param {Node} ec
+     * @param {number} eo
+     */
+    updateBoundaries: function(sc, so, ec, eo) {
+      /** @this {Range} */
+      this.setStart(sc, so);
+      this.setEnd(ec, eo);
+    },
     /**
      *
      * @param {number[]} nodeTypes
@@ -247,10 +283,11 @@
     },
     getBookMark: function() {},
 
-    inspect: function(console) {
-      const msg = inspect(this);
-      if (console) log(msg)
-      return msg;
+    inspect: function() {
+      return inspect(this);
+    },
+    inspectOnSelection: function() {
+      return inspectOnSelection(this);
     }
   }
 
@@ -377,15 +414,29 @@
       const current = this._current;
       return isNonTextPartiallySelected(current, this.range);
     },
+    /**
+     * 处理当前节点.
+     *
+     * 内部创建一个新的range对象并包裹当前节点, 在用此节点返回一个新的RangeIterator对象.
+     * @return {RangeIterator}
+     */
     getSubtreeIterator: function() {
       const subRange = document.createRange();
       const current = this._current;
-      const sc = current, so = 0, ec = current, eo = getNodeLength(current);
+      let sc = current, so = 0, ec = current, eo = getNodeLength(current);
+
+      if (isOrIsAncestorOf(current, this.sc)) {
+        sc = this.sc;
+        so = this.so;
+      }
+
+      if (isOrIsAncestorOf(current, this.ec)) {
+        ec = this.ec;
+        eo = this.eo;
+      }
 
       subRange.setStartAndEnd(sc, so, ec, eo);
-      current.inspect(true);
-      subRange.inspect(true);
-      console.log(subRange);
+      return createRangeIterator(subRange);
     }
   }
 
