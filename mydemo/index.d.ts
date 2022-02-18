@@ -89,6 +89,12 @@ interface Tinter {
    * 如果node包含class返回true, 否则返回false.
    */
   hasClass<T extends Node>(node: T): boolean;
+
+  /**
+   *
+   * 如果边界相邻的元素被涂抹, 那么合并到一起
+   */
+  infectApply(textNodes: Text[], range: Range, isUndo: boolean): void;
 }
 
 interface RangeIterator {}
