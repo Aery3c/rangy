@@ -17,8 +17,8 @@
     version: '1.0'
   }
 
-  function log(thing) {
-    console.log(thing);
+  function log() {
+    console.log(...arguments);
   }
 
   /**
@@ -49,7 +49,69 @@
   const util = {}
 
   /**
+   * 创建一个获取着色元素相邻的可合并节点
    *
+   * forward 如果为true 获取后面的相邻节点 false获取前面的相邻节点
+   * @param {boolean} forward
+   * @return {(function(node: Text, checkParentElement: boolean))|Text|null}
+   */
+  function createAdjacentMergeableTextNodeGetter(forward) {
+    const siblingPropName = forward ? 'nextSibling' : 'previousSibling';
+    /**
+     * 获取文本节点相邻的文本节点.
+     *
+     * 如果checkParentElement为true 那么在相邻节点没有的情况下去获取父节点的相邻元素
+     * @return {Text|null}
+     */
+    return function(textNode, checkParentElement) {
+      let adjacentNode = textNode[siblingPropName], textNodeParent
+      if (adjacentNode) {
+        if (adjacentNode.nodeType === Node.TEXT_NODE) {
+          return adjacentNode;
+        }
+      } else if (checkParentElement) {
+        textNodeParent = textNode.parentNode;
+        adjacentNode = textNodeParent[siblingPropName];
+        if (adjacentNode && adjacentNode.nodeType === 1) {
+          console.log(adjacentNode);
+        }
+      }
+      return null
+    }
+  }
+
+  const getPreviousMergeableTextNode = createAdjacentMergeableTextNodeGetter(false),
+    getNextMergeableTextNode = createAdjacentMergeableTextNodeGetter(true);
+
+  /**
+   *
+   * @param {string} str
+   * @return {string}
+   */
+  function ellipsis(str) {
+    let first, last;
+    if (str.length > 25) {
+      first = str.slice(0, 10);
+      last = str.slice(str.length - 10);
+      str = `${first}......${last}`;
+    }
+    return str;
+  }
+
+  /**
+   *
+   * @param {Range} range
+   */
+  function assertRangeValid(range) {
+    if(!range.isRangeValid()) {
+      throw new Error(`Range error: This is not a healthy range, This usually happens after dom changes Range: ${range.inspect()}`);
+    }
+  }
+
+  /**
+   * 在视窗中测试range
+   *
+   * 将range添加到Selection中,
    * @param {Range} range
    */
   function inspectOnSelection(range) {
@@ -59,7 +121,26 @@
     }
     sel.addRange(range);
   }
-  function isRangeValid(range) {}
+
+  /**
+   *
+   * @param {Node} node
+   * @param {number} offset
+   * @return
+   */
+  function isValidOffset(node, offset) {
+    return offset <= (isCharacterDataNode(node) ? node.length : node.childNodes.length);
+  }
+
+  /**
+   * 这是否是一个健康的range
+   * @param {Range} range
+   * @return {boolean}
+   */
+  function isRangeValid(range) {
+    return (!!range.startContainer && !!range.startContainer) &&
+      (isValidOffset(range.startContainer, range.startOffset) && isValidOffset(range.endContainer, range.endOffset));
+  }
   /**
    * 根据nodeTypes的指示, 获取range中的所有节点
    * @example getNodesInRange(range, [3], function() {}) // 获取range中的所有文本节点
@@ -109,8 +190,8 @@
    * @return {string}
    */
   function inspect(range) {
-    return "[" + inspectNode(range.commonAncestorContainer) + "(" + inspectNode(range.startContainer) + ":" + range.startOffset + ", " +
-      inspectNode(range.endContainer) + ":" + range.endOffset + ")]";
+    return `[${range.commonAncestorContainer.inspect()}]` +
+      `(${range.startContainer.inspect()}: ${range.startOffset},${range.endContainer.inspect()}: ${range.endOffset})`;
   }
   /**
    *
@@ -129,6 +210,56 @@
 
   /** dom */
   const dom = {}
+
+  /**
+   * 如果两个HTMLElment具有相同的属性key, class除外,
+   * @param {HTMLElement} el1
+   * @param {HTMLElement} el2
+   * @return {boolean}
+   */
+  function elementsHaveSameNonClassAttributes(el1, el2) {
+    if (el1.attributes.length !== el2.attributes.length) return false;
+    for (let i = 0, len = el1.attributes.length, attr1, attr2, name; i < len; ++i) {
+      attr1 = el1.attributes[i];
+      name = attr1.name;
+      if (name !== 'class') {
+        attr2 = el2.attributes.getNamedItem(name);
+        if ((attr1 === null) !== (attr2 === null)) return false;
+        if (attr1.specified != attr2.specified) return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   *
+   * @param {Node} parentNode
+   * @param {Node} insertNode
+   * @param {Node} precedingNode
+   * @return {insertNode}
+   */
+  function insertAfter(parentNode, insertNode, precedingNode) {
+    const nextNode = precedingNode.nextSibling;
+    if (nextNode) {
+      parentNode.insertBefore(insertNode, nextNode);
+    } else {
+      parentNode.appendChild(insertNode);
+    }
+  }
+
+  /**
+   *
+   * @param {number} offset
+   * @return {Text}
+   */
+  function splitText(offset) {
+    /** @type {Text} */
+    const newTextNode = this.cloneNode();
+    newTextNode.deleteData(0, offset);
+    this.deleteData(offset, this.length);
+    this.parentNode.insertAfter(newTextNode, this);
+    return newTextNode;
+  }
 
   /**
    * 返回节点自身的长度.
@@ -153,7 +284,7 @@
   }
   /**
    *
-   * @param {Element} el
+   * @param {HTMLElement} el
    * @param {string} className
    * @return boolean;
    */
@@ -164,6 +295,31 @@
       const classNameSupprted = (typeof el.className === 'string');
       const elClass = classNameSupprted ? el.className : el.getAttribute('class');
       return classNameContainsClass(elClass, className);
+    }
+  }
+
+  /**
+   *
+   * @param {HTMLElement} el
+   * @param {string} className
+   */
+  function addClass(el, className) {
+    if (typeof el.classList === 'object') {
+      el.classList.add(className);
+    } else {
+      const classNameSupprted = (typeof el.className === 'string');
+      let elClass = classNameSupprted ? el.className : el.getAttribute('class');
+      if (elClass) {
+        elClass += (' ' + className);
+      } else {
+        elClass = className;
+      }
+
+      if (classNameSupprted) {
+        el.className = elClass;
+      } else {
+        el.setAttribute('class', elClass);
+      }
     }
   }
 
@@ -188,7 +344,7 @@
     }
     if (node.nodeType === 1) {
       let idAttr = node.id ? `'id=${node.id}'` : '';
-      return `<${node.nodeName} ${idAttr}>[index: ${getNodeIndex(node)}, length: ${node.childNodes.length}][${node.innerHTML}]`;
+      return `<${node.nodeName} ${idAttr}>[index: ${getNodeIndex(node)}, length: ${node.childNodes.length}][${ellipsis(node.innerHTML)}]`;
     }
     return node.nodeName;
   }
@@ -250,7 +406,28 @@
   }
 
   const rangeProto = {
-    splitRangeBoundaries: function() {},
+    /** @lends Range.prototype */
+    splitRangeBoundaries: function() {
+      /** @this {Range} */
+      let sc = this.startContainer, so = this.startOffset, ec = this.endContainer, eo = this.endOffset, textNode;
+      const startSameEnd = (sc === ec);
+      if (isCharacterDataNode(ec) && eo > 0 && eo < ec.length) {
+        ec.splitText(eo);
+      }
+
+      if (isCharacterDataNode(sc) && so > 0 && so < sc.length) {
+        sc = sc.splitText(so);
+        if (startSameEnd) {
+          eo -= so;
+          ec = sc;
+        } else if (ec === sc.parentNode && eo < getNodeIndex(ec)) {
+          eo++;
+        }
+      }
+      so = 0;
+      this.setStartAndEnd(sc, so, ec, eo);
+      assertRangeValid(this);
+    },
     setStartAndEnd: function() {
       const args = arguments;
       let sc = args[0], so = args[1], ec = sc, eo = so;
@@ -294,18 +471,32 @@
     },
     inspectOnSelection: function() {
       return inspectOnSelection(this);
+    },
+    isRangeValid: function() {
+      /** @this {Range} */
+      return isRangeValid(this);
+    }
+  }
+
+  const nodeProto = {
+    inspect: function() {
+      return inspectNode(this);
+    },
+    insertAfter: function(insertNode, precedingNode) {
+      insertAfter(this, insertNode, precedingNode);
     }
   }
 
   extend(Range.prototype, rangeProto);
 
-  extend(Node.prototype, {
-    inspect: function(console = false) {
-      const msg = inspectNode(this);
-      if (console) log(msg)
-      return msg;
-    }
-  });
+  extend(Node.prototype, nodeProto);
+
+  if (!Text.prototype.splitText) {
+    /**
+     * @override
+     */
+    Text.prototype.splitText = splitText
+  }
 
   /** Highlighter 荧光笔 */
   function Highlighter() {}
@@ -320,14 +511,69 @@
   }
 
   Tinter.prototype = {
+    elementTagName: 'span',
+    /**
+     *
+     * @param {ParentNode} parentNode
+     * @return {HTMLElement}
+     */
+    createWrapperContainer: function(parentNode) {
+      const el = document.createElement(this.elementTagName);
+      addClass(el, this.className);
+      return el;
+    },
+    /**
+     *
+     * @param {Text} textNode
+     */
+    applyToTextNode: function(textNode) {
+      const textNodeParent = textNode.parentNode;
+      if (textNodeParent) {
+        const el = this.createWrapperContainer(textNodeParent);
+        textNodeParent.insertBefore(el, textNode);
+        el.appendChild(textNode);
+      }
+    },
 
     /**
      *
      * @param {Range} range
      */
     applyToRange: function(range) {
-      log(range);
+      const tinter = this;
+      // 分割边界
+      range.splitRangeBoundaries();
+
+      // 获取范围中包含的所有文本节点
+      const textNodes = range.getNodes([Node.TEXT_NODE]);
+
+      if (textNodes.length) {
+        textNodes.forEach(function(textNode) {
+          if (!tinter.getSelfOrAncestorWithClass(textNode)) {
+            tinter.applyToTextNode(textNode);
+          }
+        });
+
+        const lastTextNode = textNodes[textNodes.length - 1];
+        range.setStartAndEnd(textNodes[0], 0, lastTextNode, lastTextNode.length);
+
+        tinter.postApply(textNodes, range, false);
+      }
     },
+
+    /**
+     * 如果range左右边界被着色, 那么吸收他们
+     * @param {Text[]} textNodes
+     * @param {Range} range
+     * @param {boolean} isUndo
+     */
+    postApply: function(textNodes, range, isUndo) {
+      if (textNodes.length) {
+        const firstTextNode = textNodes[0], lastTextNode = textNodes[textNodes.length - 1];
+        const precedingNode = getPreviousMergeableTextNode(firstTextNode, !isUndo);
+      }
+    },
+
     /**
      *
      * @param {Range} range
