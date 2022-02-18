@@ -34,7 +34,7 @@ interface Range {
    * @param nodeTypes 获取的节点类型 一个数组 数组外的类型将全部被过滤掉.
    * @param filter 过滤函数 返回一个布尔值 如果为false则过滤掉.
    */
-  getNodes<T>(nodeTypes?: number[], filter?: (node: T) => boolean): T[];
+  getNodes<T extends Node | Text>(nodeTypes?: number[], filter?: (node: T) => boolean): T[];
 
   /**
    *
@@ -58,9 +58,18 @@ interface Range {
    * 在当前视窗中查看range
    */
   inspectOnSelection(): void;
+
+  /**
+   * range是否健康
+   */
+  isRangeValid(): boolean;
+
 }
 
 interface Tinter {
+  elementTagName: string;
+  createWrapperContainer(parentNode: ParentNode): HTMLElement;
+  applyToTextNode(textNode: Text): void;
   /**
    * 将class应用到此范围.
    */
@@ -87,6 +96,10 @@ interface RangeIterator {}
 interface Util {
   isRangeValid(): boolean;
   getNodesInRange<T extends Node>(range: Range, nodeTypes?: number[], filter?: (node: T) => boolean): T[];
+}
+
+interface Node {
+  insertAfter<T extends Node>(insertNode: T, precedingNode: T): T;
 }
 
 interface Aery {
