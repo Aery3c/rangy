@@ -49,18 +49,66 @@
   const util = {}
 
   /**
-   * 创建一个获取着色元素相邻的可合并节点
    *
-   * forward 如果为true 获取后面的相邻节点 false获取前面的相邻节点
+   * @example str = 'c b a' sortClassName(str) -> a b c
+   * class排序
+   * @param {string} className
+   */
+  function sortClassName(className) {
+    return className.split(/\s+/).sort().join(' ');
+  }
+
+  /**
+   * 获取元素的class
+   * @param {HTMLElement} el
+   * @return {string}
+   */
+  function getClass(el) {
+    const classNameSupperted = (typeof el.className === 'string');
+    return classNameSupperted ? el.className : el.getAttribute('class');
+  }
+
+  /**
+   * 判断两个元素是否具有相同的class
+   * @param {HTMLElement} el1
+   * @param {HTMLElement} el2
+   * @return {boolean}
+   */
+  function haveSameClasses(el1, el2) {
+    return sortClassName(getClass(el1)) === sortClassName(getClass(el2));
+  }
+
+  /**
+   * 两个元素是否可以进行合并.
+   *
+   * 具有相同的tagName.
+   *
+   * 具有相同的class.
+   *
+   * 都必须是内联元素.
+   * @param {HTMLElement} el1
+   * @param {HTMLElement} el2
+   */
+  function areElementMergeable(el1, el2) {
+    return el1.tagName.toLowerCase() === el2.tagName.toLowerCase() &&
+      haveSameClasses(el1, el2) &&
+      ((el1.getAttribute('display') === 'inline') === (el2.getAttribute('display') === 'inline'));
+  }
+
+  /**
+   * 创建一个获取着色节点相邻的可合并节点.
+   *
+   * forward 如果为true 获取后面的相邻节点 false获取前面的相邻节点.
    * @param {boolean} forward
    * @return {(function(node: Text, checkParentElement: boolean))|Text|null}
    */
   function createAdjacentMergeableTextNodeGetter(forward) {
     const siblingPropName = forward ? 'nextSibling' : 'previousSibling';
+    const firstAndLastPropName = forward ? 'firstChild' : 'lastChild';
     /**
-     * 获取文本节点相邻的文本节点.
+     * 获取着色节点相邻的可合并节点.
      *
-     * 如果checkParentElement为true 那么在相邻节点没有的情况下去获取父节点的相邻元素
+     * 如果checkParentElement为true 那么在相邻节点没有的情况下去获取父节点的相邻元素.
      * @return {Text|null}
      */
     return function(textNode, checkParentElement) {
@@ -72,8 +120,11 @@
       } else if (checkParentElement) {
         textNodeParent = textNode.parentNode;
         adjacentNode = textNodeParent[siblingPropName];
-        if (adjacentNode && adjacentNode.nodeType === 1) {
-          console.log(adjacentNode);
+        if (adjacentNode && adjacentNode.nodeType === 1 && areElementMergeable(textNodeParent, adjacentNode)) {
+          const adjacentNodeChild = adjacentNode[firstAndLastPropName];
+          if (adjacentNodeChild && adjacentNodeChild.nodeType === 3) {
+            return adjacentNodeChild;
+          }
         }
       }
       return null
@@ -210,6 +261,14 @@
 
   /** dom */
   const dom = {}
+
+  /**
+   *
+   * @param {Node} node
+   */
+  function removeNode(node) {
+    return node.parentNode.removeChild(node);
+  }
 
   /**
    * 如果两个HTMLElment具有相同的属性key, class除外,
@@ -557,21 +616,51 @@
         const lastTextNode = textNodes[textNodes.length - 1];
         range.setStartAndEnd(textNodes[0], 0, lastTextNode, lastTextNode.length);
 
-        tinter.postApply(textNodes, range, false);
+        tinter.infectApply(textNodes, range, false);
       }
     },
 
     /**
-     * 如果range左右边界被着色, 那么吸收他们
+     *
      * @param {Text[]} textNodes
      * @param {Range} range
      * @param {boolean} isUndo
      */
-    postApply: function(textNodes, range, isUndo) {
-      if (textNodes.length) {
-        const firstTextNode = textNodes[0], lastTextNode = textNodes[textNodes.length - 1];
-        const precedingNode = getPreviousMergeableTextNode(firstTextNode, !isUndo);
+    infectApply: function(textNodes, range, isUndo) {
+      const firstTextNode = textNodes[0], lastTextNode = textNodes[textNodes.length - 1];
+      const rangeStartContainer = firstTextNode, rangeEndContainer = lastTextNode;
+
+      let currentMerge = null, merges = [];
+
+      textNodes.forEach(function(textNode) {
+        const precedingTextNode = getPreviousMergeableTextNode(textNode, !isUndo);
+        if (precedingTextNode) {
+          if (!currentMerge) {
+            currentMerge = new Merge(precedingTextNode);
+            merges.push(currentMerge);
+          }
+          currentMerge.textNodes.push(textNode);
+        } else {
+          currentMerge = null
+        }
+      });
+
+      const nextTextNode = getNextMergeableTextNode(lastTextNode, !isUndo);
+      if (nextTextNode) {
+        if (!currentMerge) {
+          currentMerge = new Merge(lastTextNode);
+          merges.push(currentMerge);
+        }
+        currentMerge.textNodes.push(nextTextNode);
       }
+
+      merges.forEach(function(merge) {
+        merge.doMerge();
+      });
+      console.log(firstTextNode, lastTextNode);
+      // this there
+      // range.setStartAndEnd(rangeStartContainer, 0, rangeEndContainer, rangeEndContainer.length);
+      // console.log(range.inspect());
     },
 
     /**
@@ -584,7 +673,6 @@
         return !!this.getSelfOrAncestorWithClass(range.commonAncestorContainer);
       } else {
         const textNodes = range.getNodes([Node.TEXT_NODE]);
-        console.log(textNodes);
       }
     },
     /**
@@ -608,6 +696,32 @@
      */
     hasClass: function(node) {
       return node.nodeType === 1 && hasClass(node, this.className);
+    }
+  }
+
+  /**
+   * Merge
+   * @param {Text} firstTextNode;
+   * @constructor
+   */
+  function Merge(firstTextNode) {
+    this.firstTextNode = firstTextNode;
+    this.textNodes = [];
+  }
+  /** @lends {Merge} */
+  Merge.prototype = {
+    doMerge: function() {
+      let textParts = [];
+      this.textNodes.forEach(function(textNode, index) {
+        const parentNode = textNode.parentNode;
+        removeNode(textNode);
+        if (!parentNode.hasChildNodes()) {
+          removeNode(parentNode);
+        }
+        textParts[index] = textNode.data;
+      });
+      this.firstTextNode.data += textParts.join('');
+      return this.firstTextNode.data;
     }
   }
 
