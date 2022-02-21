@@ -71,12 +71,18 @@ interface Tinter {
   createWrapperContainer(parentNode: ParentNode): HTMLElement;
   applyToTextNode(textNode: Text): void;
   /**
-   * 将class应用到此范围.
+   * 将class应用到range.
    */
   applyToRange(range: Range): void;
 
   /**
-   * 如果此范围已被class着色, 那么返回true, 否则fasle.
+   * 从range上移除class
+   * @param range
+   */
+  undoToRange(range: Range): void;
+
+  /**
+   * 如果range已被class上色, 那么返回true, 否则fasle.
    */
   isTinterToRange(range: Range): boolean;
 
@@ -95,6 +101,12 @@ interface Tinter {
    * 如果边界相邻的元素被涂抹, 那么合并到一起
    */
   infectApply(textNodes: Text[], range: Range, isUndo: boolean): void;
+
+  /**
+   * 如果range被class上色, 将颜色移除, 否则上色
+   * @param range
+   */
+  toggleRange(range: Range): void;
 }
 
 interface RangeIterator {}
