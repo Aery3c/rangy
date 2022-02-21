@@ -482,8 +482,8 @@
         } else if (ec === sc.parentNode && eo < getNodeIndex(ec)) {
           eo++;
         }
+        so = 0;
       }
-      so = 0;
       this.setStartAndEnd(sc, so, ec, eo);
       assertRangeValid(this);
     },
@@ -598,6 +598,29 @@
      *
      * @param {Range} range
      */
+    toggleRange: function(range) {
+      if (this.isTinterToRange(range)) {
+        this.undoToRange(range);
+      } else {
+        this.applyToRange(range);
+      }
+    },
+
+    /**
+     *
+     * @param {Range} range
+     */
+    undoToRange: function(range) {
+      range.splitRangeBoundaries();
+
+      const textNodes = range.getNodes([Node.TEXT_NODE]);
+
+    },
+
+    /**
+     *
+     * @param {Range} range
+     */
     applyToRange: function(range) {
       const tinter = this;
       // 分割边界
@@ -628,23 +651,38 @@
      */
     infectApply: function(textNodes, range, isUndo) {
       const firstTextNode = textNodes[0], lastTextNode = textNodes[textNodes.length - 1];
-      const rangeStartContainer = firstTextNode, rangeEndContainer = lastTextNode;
-
       let currentMerge = null, merges = [];
 
+      let rangeStartNode = firstTextNode,
+        rangeEndNode = lastTextNode,
+        rangeStartOffset = 0,
+        rangeEndOffset = lastTextNode.length;
+
       textNodes.forEach(function(textNode) {
-        const precedingTextNode = getPreviousMergeableTextNode(textNode, !isUndo);
-        if (precedingTextNode) {
+        // 检查每个必需的合并，并为每个合并创建一个merge对象
+        const precedingNode = getPreviousMergeableTextNode(textNode, !isUndo);
+        if (precedingNode) {
           if (!currentMerge) {
-            currentMerge = new Merge(precedingTextNode);
+            currentMerge = new Merge(precedingNode);
             merges.push(currentMerge);
           }
           currentMerge.textNodes.push(textNode);
+          if (textNode === firstTextNode) {
+            rangeStartNode = currentMerge.textNodes[0];
+            rangeStartOffset = rangeStartNode.length;
+          }
+
+          if (textNode === lastTextNode) {
+            rangeEndNode = currentMerge.textNodes[0];
+            rangeEndOffset = currentMerge.getLength();
+          }
+
         } else {
-          currentMerge = null
+          currentMerge = null;
         }
       });
 
+      // 范围后面的节点是否可合并
       const nextTextNode = getNextMergeableTextNode(lastTextNode, !isUndo);
       if (nextTextNode) {
         if (!currentMerge) {
@@ -654,26 +692,34 @@
         currentMerge.textNodes.push(nextTextNode);
       }
 
-      merges.forEach(function(merge) {
-        merge.doMerge();
-      });
-      console.log(firstTextNode, lastTextNode);
-      // this there
-      // range.setStartAndEnd(rangeStartContainer, 0, rangeEndContainer, rangeEndContainer.length);
-      // console.log(range.inspect());
+      if (merges.length) {
+        merges.forEach(function(merge) {
+          merge.doMerge();
+        });
+
+        range.setStartAndEnd(rangeStartNode, rangeStartOffset, rangeEndNode, rangeEndOffset);
+      }
     },
 
     /**
      *
      * @param {Range} range
-     * @return boolean
+     * @return {boolean}
      */
     isTinterToRange: function(range) {
       if (range.collapsed || range.toString() === '') {
         return !!this.getSelfOrAncestorWithClass(range.commonAncestorContainer);
       } else {
         const textNodes = range.getNodes([Node.TEXT_NODE]);
+        for (let i = 0, textNode; i < textNodes.length; ++i) {
+          textNode = textNodes[i];
+          if (!this.getSelfOrAncestorWithClass(textNode)) {
+            return false;
+          }
+        }
       }
+
+      return true;
     },
     /**
      *
@@ -701,27 +747,47 @@
 
   /**
    * Merge
-   * @param {Text} firstTextNode;
+   * @param {Node | Text} firstNode;
    * @constructor
    */
-  function Merge(firstTextNode) {
-    this.firstTextNode = firstTextNode;
+  function Merge(firstNode) {
+    const isElement = (firstNode.nodeType === 1);
+    /**
+     * @name Merge#textNodes
+     * @type {Text[]}
+     */
     this.textNodes = [];
+    this.firstTextNode = isElement ? firstNode.lastChild : firstNode;
+    if (this.firstTextNode) {
+      this.textNodes[0] = this.firstTextNode;
+    }
   }
   /** @lends {Merge} */
   Merge.prototype = {
     doMerge: function() {
-      let textParts = [];
-      this.textNodes.forEach(function(textNode, index) {
-        const parentNode = textNode.parentNode;
-        removeNode(textNode);
-        if (!parentNode.hasChildNodes()) {
-          removeNode(parentNode);
+      const firstTextNode = this.textNodes[0], textParts = [];
+      this.textNodes.forEach(function(textNode, i) {
+        if (i > 0) {
+          const parentNode = textNode.parentNode;
+          removeNode(textNode)
+          if (!parentNode.hasChildNodes()) {
+            removeNode(parentNode);
+          }
         }
-        textParts[index] = textNode.data;
+        textParts[i] = textNode.data;
       });
-      this.firstTextNode.data += textParts.join('');
-      return this.firstTextNode.data;
+
+      firstTextNode.data = textParts.join('');
+
+      return firstTextNode.data;
+    },
+    getLength: function() {
+      let i = this.textNodes.length, len = 0;
+      while(i--) {
+        len += this.textNodes[i].length;
+      }
+
+      return len;
     }
   }
 
