@@ -264,6 +264,58 @@
 
   /**
    *
+   * @param {Node | HTMLElement} element
+   * @return {ChildNode[]}
+   */
+  function replaceWithOwnChildren(element) {
+    return moveChildren(element, element.parentNode, getNodeIndex(element), true);
+  }
+
+  /**
+   *
+   * @param {Node} node
+   * @param {ParentNode} newParent
+   * @param {number} newIndex
+   * @param {boolean} isRemoveSelf
+   * @return {ChildNode[]}
+   */
+  function moveChildren(node, newParent, newIndex, isRemoveSelf) {
+    let child, children = [];
+    while ((child = node.firstChild)) {
+      moveNode(child, newParent, newIndex++);
+      children.push(child);
+    }
+
+    if (isRemoveSelf) {
+      removeNode(node);
+    }
+
+    return children;
+  }
+
+  /**
+   *
+   * @param {Node} node
+   * @param {ParentNode} parentNode
+   * @param {number} index
+   */
+  function moveNode(node, parentNode, index) {
+
+    if (index === -1) {
+      index = parentNode.childNodes.length;
+    }
+
+    if (index === parentNode.childNodes.length) {
+      parentNode.appendChild(node);
+    } else {
+      parentNode.insertBefore(node, parentNode.childNodes[index]);
+    }
+
+    return node;
+  }
+
+  /**
+   *
    * @param {Node} node
    */
   function removeNode(node) {
@@ -611,10 +663,32 @@
      * @param {Range} range
      */
     undoToRange: function(range) {
+      const tinter = this;
       range.splitRangeBoundaries();
-
       const textNodes = range.getNodes([Node.TEXT_NODE]);
+      textNodes.forEach(function(textNode) {
+        const ancestorWithClass = tinter.getSelfOrAncestorWithClass(textNode);
+        if (ancestorWithClass) {
+          tinter.undoToAncestor(ancestorWithClass)
+        }
+      });
 
+      tinter.infectApply(textNodes, range, true);
+
+    },
+
+    /**
+     *
+     * @param {Node} ancestorWithClass
+     */
+    undoToAncestor: function(ancestorWithClass) {
+      if (this.isRemovable(ancestorWithClass)) {
+        replaceWithOwnChildren(ancestorWithClass);
+      }
+    },
+
+    isRemovable: function() {
+      return true;
     },
 
     /**
@@ -884,6 +958,13 @@
   function createTinter(className, options) {
     return new Tinter(className, options);
   }
+
+  extend(dom, {
+    getNodeIndex: getNodeIndex,
+    removeNode: removeNode,
+    moveChildren: moveChildren,
+    moveNode: moveNode
+  });
 
   api.util = util;
   api.dom = dom;
