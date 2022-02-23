@@ -116,6 +116,13 @@ interface Util {
   getNodesInRange<T extends Node>(range: Range, nodeTypes?: number[], filter?: (node: T) => boolean): T[];
 }
 
+interface Dom {
+  getNodeIndex<T extends Node>(node: T): number;
+  removeNode<T extends Node>(node: T): T;
+  moveChildren<T extends Node>(node: Node, newParent: ParentNode, newIndex: number, isRemoveSelf: boolean): ChildNode[];
+  moveNode<T extends Node>(node: T, parentNode: ParentNode, index: number): T;
+}
+
 interface Node {
   insertAfter<T extends Node>(insertNode: T, precedingNode: T): T;
 }
@@ -124,6 +131,7 @@ interface Aery {
   createTinter(className: string, options: {}): Tinter;
   createRangeIterator(range: Range): RangeIterator;
   util: Util
+  dom: Dom
 }
 
 declare var aery: Aery;
