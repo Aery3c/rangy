@@ -50,7 +50,19 @@
 
   /**
    *
-   * @example str = 'c b a' sortClassName(str) -> a b c
+   * @param {Range} rangeA
+   * @param {Range} rangeB
+   */
+  function rangesIntersect(rangeA, rangeB) {
+    // A.e > B.s
+    // A.s < B.e
+    return rangeA.compareBoundaryPoints(rangeB.START_TO_END, rangeB) > 0
+      && rangeA.compareBoundaryPoints(rangeB.END_TO_START, rangeB) < 0;
+  }
+
+  /**
+   *
+   * @example str = 'c b a' sortClassName(str) -> 'a b c'
    * class排序
    * @param {string} className
    */
@@ -208,9 +220,15 @@
     iterateSubtree(createRangeIterator(range), function(node) {
       const t = node.nodeType;
 
-      if (regex && regex.test(t)) {
-        nodes.push(node);
+      if (regex && !regex.test(t)) {
+        return;
       }
+
+      if (typeof filter === 'function' && !filter(node)) {
+        return;
+      }
+
+      nodes.push(node);
     });
 
     return nodes;
@@ -261,6 +279,18 @@
 
   /** dom */
   const dom = {}
+
+  /**
+   * @param {Object} attrObj
+   * @param {HTMLElement} el
+   */
+  function copyAttributesToElement(attrObj, el) {
+    each(attrObj, function(attrName, attrValue) {
+      if (attrObj.hasOwnProperty(attrName) && !/^class(?:Name)?$/i.test(attrName)) {
+        el.setAttribute(attrName, attrValue);
+      }
+    });
+  }
 
   /**
    *
@@ -586,6 +616,26 @@
     isRangeValid: function() {
       /** @this {Range} */
       return isRangeValid(this);
+    },
+    /**
+     *
+     * @param {Range} sourceRange
+     * @return {Range|null}
+     */
+    intersection: function(sourceRange) {
+      if (rangesIntersect(this, sourceRange)) {
+        const intersectionRange = this.cloneRange();
+        if (intersectionRange.compareBoundaryPoints(sourceRange.START_TO_START,sourceRange) === -1) {
+          intersectionRange.setStart(sourceRange.startContainer, sourceRange.startOffset);
+        }
+
+        if (intersectionRange.compareBoundaryPoints(sourceRange.END_TO_END, sourceRange) === 1) {
+          intersectionRange.setEnd(sourceRange.endContainer, sourceRange.endOffset);
+        }
+        return intersectionRange;
+      }
+
+      return null;
     }
   }
 
@@ -616,13 +666,59 @@
 
   }
 
+  function each(obj, func) {
+    for (let i in obj) {
+      if (obj.hasOwnProperty(i)) {
+        if(func(i, obj[i]) === false) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  const optionProperties = ['elementTagName', 'elementProperties', 'elementAttributes', 'removeEmptyElements'];
+
   /** Tinter 着色器 */
   function Tinter(className, options) {
-    this.className = className;
+    const tinter = this, elementAttributes = options.elementAttributes || {};
+    tinter.className = className;
+    if (typeof options === 'object' && options !== null) {
+      if (typeof options.elementTagName === 'string') {
+        options.elementTagName = options.elementTagName.toLowerCase();
+      }
+
+      optionProperties.forEach(function(propName) {
+        if (options.hasOwnProperty(propName)) {
+          tinter[propName] = options[propName];
+        }
+      });
+    }
+
+    each(elementAttributes, function(attrName, attrValue) {
+      // 确保每个值都是string
+      elementAttributes[attrName] = '' + attrValue;
+    });
+
+    // tinter.elementAttributes = elementAttributes;
+
+    console.log(tinter);
+
   }
 
   Tinter.prototype = {
     elementTagName: 'span',
+    elementProperties: {},
+    elementAttributes: {},
+    removeEmptyElements: true,
+    /**
+     *
+     * @param {HTMLElement} el
+     */
+    copyAttributesToElement: function(el) {
+      copyAttributesToElement(this.elementAttributes, el);
+    },
     /**
      *
      * @param {ParentNode} parentNode
@@ -630,6 +726,8 @@
      */
     createWrapperContainer: function(parentNode) {
       const el = document.createElement(this.elementTagName);
+
+      this.copyAttributesToElement(el);
       addClass(el, this.className);
       return el;
     },
@@ -665,7 +763,13 @@
     undoToRange: function(range) {
       const tinter = this;
       range.splitRangeBoundaries();
+
+      if (this.removeEmptyElements) {
+        tinter.removeEmptyContainers(range);
+      }
+
       const textNodes = range.getNodes([Node.TEXT_NODE]);
+
       textNodes.forEach(function(textNode) {
         const ancestorWithClass = tinter.getSelfOrAncestorWithClass(textNode);
         if (ancestorWithClass) {
@@ -700,6 +804,10 @@
       // 分割边界
       range.splitRangeBoundaries();
 
+      if (this.removeEmptyElements) {
+        tinter.removeEmptyContainers(range);
+      }
+
       // 获取范围中包含的所有文本节点
       const textNodes = range.getNodes([Node.TEXT_NODE]);
 
@@ -715,6 +823,29 @@
 
         tinter.infectApply(textNodes, range, false);
       }
+    },
+    /**
+     *
+     * @param {Range} range
+     */
+    removeEmptyContainers: function(range) {
+      const tinter = this;
+      const nodesToRemove  = range.getNodes([Node.ELEMENT_NODE], function(el) {
+        return tinter.isEmptyContainer(el);
+      });
+      // this here
+      console.log(nodesToRemove, 'nodesToRemove');
+    },
+
+    /**
+     *
+     * @param {HTMLElement} el
+     * @return {boolean}
+     */
+    isEmptyContainer: function(el) {
+      const childNodeLen = el.childNodes.length;
+      return el.nodeType === 1
+        && (childNodeLen === 0 || (childNodeLen === 1 && this.isEmptyContainer(el.firstChild)));
     },
 
     /**
@@ -958,6 +1089,10 @@
   function createTinter(className, options) {
     return new Tinter(className, options);
   }
+
+  extend(util, {
+    rangesIntersect: rangesIntersect
+  });
 
   extend(dom, {
     getNodeIndex: getNodeIndex,
