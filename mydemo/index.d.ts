@@ -34,13 +34,16 @@ interface Range {
    * @param nodeTypes 获取的节点类型 一个数组 数组外的类型将全部被过滤掉.
    * @param filter 过滤函数 返回一个布尔值 如果为false则过滤掉.
    */
-  getNodes<T extends Node | Text>(nodeTypes?: number[], filter?: (node: T) => boolean): T[];
+  getNodes<T extends Node | Text | HTMLElement>(nodeTypes?: number[], filter?: (node: T) => boolean): T[];
 
   /**
+   * 取出range与另一个range产生交集的部分
    *
-   * @param sourceRange
+   * @param sourceRange - 参与比较的range
+   *
+   * @returns 返回产生交集的部分, 如果没有则返回null
    */
-  intersection(sourceRange: Range): void;
+  intersection(sourceRange: Range): Range | null;
 
   /**
    *
@@ -63,7 +66,6 @@ interface Range {
    * range是否健康
    */
   isRangeValid(): boolean;
-
 }
 
 interface Tinter {
@@ -103,6 +105,11 @@ interface Tinter {
   infectApply(textNodes: Text[], range: Range, isUndo: boolean): void;
 
   /**
+   * 删除range路线上存在的空元素
+   * @param range
+   */
+  removeEmptyContainers(range: Range): void;
+  /**
    * 如果range被class上色, 将颜色移除, 否则上色
    * @param range
    */
@@ -114,6 +121,7 @@ interface RangeIterator {}
 interface Util {
   isRangeValid(): boolean;
   getNodesInRange<T extends Node>(range: Range, nodeTypes?: number[], filter?: (node: T) => boolean): T[];
+  rangesIntersect(rangeA: Range, rangeB: Range): boolean;
 }
 
 interface Dom {
@@ -127,8 +135,15 @@ interface Node {
   insertAfter<T extends Node>(insertNode: T, precedingNode: T): T;
 }
 
+interface TinterOptions {
+  elementTagName?: string;
+  elementAttributes?: {
+    [key: string]: string;
+  };
+}
+
 interface Aery {
-  createTinter(className: string, options: {}): Tinter;
+  createTinter(className: string, options?: TinterOptions): Tinter;
   createRangeIterator(range: Range): RangeIterator;
   util: Util
   dom: Dom
