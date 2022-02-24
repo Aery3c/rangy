@@ -636,6 +636,9 @@
       }
 
       return null;
+    },
+    getRangeBoundaries: function() {
+
     }
   }
 
@@ -948,6 +951,17 @@
     hasClass: function(node) {
       return node.nodeType === 1 && hasClass(node, this.className);
     }
+  }
+
+  /**
+   *
+   * @param {Node|Text} node
+   * @param {number} offset
+   * @constructor
+   */
+  function DomPosition(node, offset) {
+    this.node = node;
+    this.offset = offset;
   }
 
   /**
