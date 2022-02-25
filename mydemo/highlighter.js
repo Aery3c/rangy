@@ -17,8 +17,35 @@
     version: '1.0'
   }
 
-  function log() {
-    console.log(...arguments);
+  /** positionsToPreserve operate */
+
+  /**
+   *
+   * @param {Node} node
+   * @param {DomPosition[]} positionsToPreserve
+   */
+  function removePreservingPositions(node, positionsToPreserve) {
+
+    const oldParent = node.parentNode;
+    const oldIndex = getNodeIndex(node);
+
+    positionsToPreserve.forEach(function(position) {
+      movePositionWhenRemovingNode(position, oldParent, oldIndex);
+    });
+
+    removeNode(node);
+  }
+
+  /**
+   *
+   * @param {DomPosition} position
+   * @param {ParentNode} parentNode
+   * @param {number} index
+   */
+  function movePositionWhenRemovingNode(position, parentNode, index) {
+    if (position.node === parentNode && position.offset > index) {
+      --position.offset;
+    }
   }
 
   /**
@@ -47,6 +74,20 @@
 
   /** util */
   const util = {}
+
+  /**
+   *
+   * @param {Range} range
+   * @param {Text} textNode
+   * @return {boolean}
+   */
+  function rangeSelectsAnyText(range, textNode) {
+    const textNodeRange = document.createRange();
+    textNodeRange.selectNodeContents(textNode);
+    const intersectionRange = textNodeRange.intersection(range);
+    const text = intersectionRange ? intersectionRange.toString() : '';
+    return text !== '';
+  }
 
   /**
    *
@@ -600,7 +641,7 @@
     /**
      *
      * @param {number[]} nodeTypes
-     * @param {Function} filter
+     * @param {Function} [filter]
      */
     getNodes: function(nodeTypes, filter) {
       return getNodesInRange(this, nodeTypes, filter);
@@ -637,8 +678,25 @@
 
       return null;
     },
-    getRangeBoundaries: function() {
+    /**
+     * @return {Text[]|Node[]}
+     */
+    getEffectiveTextNodes: function() {
+      const range = this;
+      const textNodes = this.getNodes([ Node.TEXT_NODE ]);
 
+      // Remove non-intersecting text nodes from the start of the range
+      var start = 0, node;
+      while ( (node = textNodes[start]) && !rangeSelectsAnyText(range, node) ) {
+        ++start;
+      }
+
+      // Remove non-intersecting text nodes from the start of the range
+      var end = textNodes.length - 1;
+      while ( (node = textNodes[end]) && !rangeSelectsAnyText(range, node) ) {
+        --end;
+      }
+      return textNodes.slice(start, end + 1);
     }
   }
 
@@ -651,9 +709,34 @@
     }
   }
 
+  const selProto = {
+    /** @lends Selection.prototype */
+    eachRange: function(func) {
+      for (let i = 0; i < this.rangeCount; ++i) {
+        if (func(this.getRangeAt(i)) === false) {
+          return false;
+        }
+      }
+      return true;
+    },
+    /**
+     *
+     * @return {Range[]}
+     */
+    getAllRanges: function() {
+      const ranges = [];
+      this.eachRange(function(range) {
+        ranges.push(range);
+      });
+      return ranges;
+    }
+  }
+
   extend(Range.prototype, rangeProto);
 
   extend(Node.prototype, nodeProto);
+
+  extend(Selection.prototype, selProto);
 
   if (!Text.prototype.splitText) {
     /**
@@ -703,10 +786,6 @@
       // 确保每个值都是string
       elementAttributes[attrName] = '' + attrValue;
     });
-
-    // tinter.elementAttributes = elementAttributes;
-
-    console.log(tinter);
 
   }
 
@@ -804,6 +883,7 @@
      */
     applyToRange: function(range) {
       const tinter = this;
+
       // 分割边界
       range.splitRangeBoundaries();
 
@@ -812,7 +892,7 @@
       }
 
       // 获取范围中包含的所有文本节点
-      const textNodes = range.getNodes([Node.TEXT_NODE]);
+      const textNodes = range.getEffectiveTextNodes();
 
       if (textNodes.length) {
         textNodes.forEach(function(textNode) {
@@ -829,6 +909,20 @@
     },
     /**
      *
+     * @param {Range[]} ranges
+     */
+    applyToRanges: function(ranges) {
+      let i = ranges.length;
+      while(i--) {
+        this.applyToRange(ranges[i], ranges);
+      }
+    },
+    applyToSelection: function() {
+      const sel = api.getSelection();
+      this.applyToRanges(sel.getAllRanges());
+    },
+    /**
+     *
      * @param {Range} range
      */
     removeEmptyContainers: function(range) {
@@ -836,13 +930,21 @@
       const nodesToRemove  = range.getNodes([Node.ELEMENT_NODE], function(el) {
         return tinter.isEmptyContainer(el);
       });
-      // this here
-      console.log(nodesToRemove, 'nodesToRemove');
+
+      const rangesToPreserve = [range];
+      const positionsToPreserve = getRangeBoundaries(rangesToPreserve);
+
+      nodesToRemove.forEach(function(node) {
+        removePreservingPositions(node, positionsToPreserve);
+      });
+
+      updateRangesFromBoundaries(rangesToPreserve, positionsToPreserve);
+
     },
 
     /**
      *
-     * @param {HTMLElement} el
+     * @param {HTMLElement|ChildNode} el
      * @return {boolean}
      */
     isEmptyContainer: function(el) {
@@ -951,6 +1053,36 @@
     hasClass: function(node) {
       return node.nodeType === 1 && hasClass(node, this.className);
     }
+  }
+
+  /**
+   *
+   * @param {Range[]} ranges
+   * @param {DomPosition[]} positionsToPreserve
+   */
+  function updateRangesFromBoundaries(ranges, positionsToPreserve) {
+    for (let i = 0, start, end, range; (range = ranges[i]); ++i) {
+      start = positionsToPreserve[i * 2];
+      end = positionsToPreserve[i * 2 + 1];
+      range.setStartAndEnd(start.node, start.offset, end.node, end.offset);
+    }
+  }
+
+  /**
+   *
+   * @param {Range[]} ranges
+   * @return {DomPosition[]}
+   */
+  function getRangeBoundaries(ranges) {
+    let position = [], i, range;
+    for (i = 0; (range = ranges[i++]);) {
+      position.push(
+        new DomPosition(range.startContainer, range.startOffset),
+        new DomPosition(range.endContainer, range.endOffset)
+      )
+    }
+
+    return position;
   }
 
   /**
@@ -1104,6 +1236,10 @@
     return new Tinter(className, options);
   }
 
+  function getSelection() {
+    return window.getSelection();
+  }
+
   extend(util, {
     rangesIntersect: rangesIntersect
   });
@@ -1125,5 +1261,6 @@
   api.createRangeIterator = createRangeIterator;
   api.createHighlighter = createHighlighter;
   api.createTinter = createTinter;
+  api.getSelection = getSelection;
   return api;
 }, window);
