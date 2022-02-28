@@ -431,16 +431,24 @@
 
   /**
    *
+   * @param {Text} textNode
    * @param {number} offset
+   * @param {DomPosition[]} positionsToPreserve
    * @return {Text}
    */
-  function splitText(offset) {
-    /** @type {Text} */
-    const newTextNode = this.cloneNode();
-    newTextNode.deleteData(0, offset);
-    this.deleteData(offset, this.length);
-    this.parentNode.insertAfter(newTextNode, this);
-    return newTextNode;
+  function splitTextPositionsPreserve(textNode, offset, positionsToPreserve) {
+    const newTextNode = textNode.splitText(offset);
+
+    positionsToPreserve && positionsToPreserve.forEach(function(position) {
+      if (position.node === textNode && position.offset > offset) {
+        position.node = newTextNode;
+        position.offset -= offset;
+      } else if (position.node === textNode.parentNode && position.offset > getNodeIndex(textNode)) {
+        ++position.offset;
+      }
+    });
+
+    return newTextNode
   }
 
   /**
@@ -589,16 +597,20 @@
 
   const rangeProto = {
     /** @lends Range.prototype */
-    splitRangeBoundaries: function() {
+    /**
+     *
+     * @param {DomPosition[]} positionsToPreserve
+     */
+    splitBoundariesPreservingPositions: function(positionsToPreserve) {
       /** @this {Range} */
       let sc = this.startContainer, so = this.startOffset, ec = this.endContainer, eo = this.endOffset, textNode;
       const startSameEnd = (sc === ec);
       if (isCharacterDataNode(ec) && eo > 0 && eo < ec.length) {
-        ec.splitText(eo);
+        splitTextPositionsPreserve(ec, eo, positionsToPreserve);
       }
 
       if (isCharacterDataNode(sc) && so > 0 && so < sc.length) {
-        sc = sc.splitText(so);
+        sc = splitTextPositionsPreserve(sc, so, positionsToPreserve);
         if (startSameEnd) {
           eo -= so;
           ec = sc;
@@ -739,10 +751,14 @@
   extend(Selection.prototype, selProto);
 
   if (!Text.prototype.splitText) {
-    /**
-     * @override
-     */
-    Text.prototype.splitText = splitText
+    Text.prototype.splitText = function(offset) {
+      const newTextNode = this.cloneNode();
+      newTextNode.deleteData(0, offset);
+      this.deleteData(offset, this.length);
+      this.parentNode.insertAfter(newTextNode, this);
+      /** @type {Text} */
+      return newTextNode;
+    }
   }
 
   /** Highlighter 荧光笔 */
@@ -844,7 +860,7 @@
      */
     undoToRange: function(range) {
       const tinter = this;
-      range.splitRangeBoundaries();
+      range.splitBoundariesPreservingPositions();
 
       if (this.removeEmptyElements) {
         tinter.removeEmptyContainers(range);
@@ -880,12 +896,14 @@
     /**
      *
      * @param {Range} range
+     * @param {Range[]} ranges
      */
-    applyToRange: function(range) {
+    applyToRange: function(range, ranges) {
       const tinter = this;
 
+      const positionsToPreserve = getRangeBoundaries(ranges);
       // 分割边界
-      range.splitRangeBoundaries();
+      range.splitBoundariesPreservingPositions(positionsToPreserve);
 
       if (this.removeEmptyElements) {
         tinter.removeEmptyContainers(range);
@@ -1020,7 +1038,7 @@
       if (range.collapsed || range.toString() === '') {
         return !!this.getSelfOrAncestorWithClass(range.commonAncestorContainer);
       } else {
-        const textNodes = range.getNodes([Node.TEXT_NODE]);
+        const textNodes = getEffectiveTextNodes(range);
         for (let i = 0, textNode; i < textNodes.length; ++i) {
           textNode = textNodes[i];
           if (!this.getSelfOrAncestorWithClass(textNode)) {
