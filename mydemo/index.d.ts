@@ -7,7 +7,7 @@ interface Range {
    *
    * 首尾是不同节点 首尾范围中的文本节点将会是一个新的节点并分离.
    */
-  splitRangeBoundaries(): void;
+  splitBoundariesPreservingPositions(positionsToPreserve?): void;
 
   /**
    * 设置range的边界(start和end).
@@ -75,7 +75,7 @@ interface Tinter {
   /**
    * 将class应用到range.
    */
-  applyToRange(range: Range): void;
+  applyToRange(range: Range, ranges: Range[]): void;
 
   /**
    * 从range上移除class
@@ -114,6 +114,11 @@ interface Tinter {
    * @param range
    */
   toggleRange(range: Range): void;
+
+  /**
+   * 为当前的选择上色
+   */
+  applyToSelection(): void;
 }
 
 interface RangeIterator {}
