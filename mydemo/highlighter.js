@@ -21,6 +21,59 @@
 
   /**
    *
+   * @param {Node | HTMLElement} element
+   * @param {DomPosition[]} positionsToPreserve
+   * @return {ChildNode[]}
+   */
+  function replaceWithOwnChildrenPreservingPositions(element, positionsToPreserve) {
+    return moveChildrenPreservingPositions(element, positionsToPreserve);
+  }
+
+  function moveChildrenPreservingPositions(element, positionsToPreserve) {
+
+    let oldParent = element, oldIndex = getNodeIndex(element), newParent = element.parentNode;
+    let newIndex = oldIndex++;
+
+    const children = moveChildren(element, element.parentNode, getNodeIndex(element), true);
+
+    positionsToPreserve.forEach(function (position) {
+      // movePreservingPositions(child, newParent, newIndex++, positionsToPreserve);
+      console.log(oldParent, oldIndex, newParent, newIndex);
+
+    });
+
+    return children
+  }
+
+  /**
+   *
+   * @param {Text} textNode
+   * @param {number} offset
+   * @param {DomPosition[]} positionsToPreserve
+   * @return {Text}
+   */
+  function splitTextPositionsPreserve(textNode, offset, positionsToPreserve) {
+    const newTextNode = textNode.splitText(offset);
+
+    positionsToPreserve && positionsToPreserve.forEach(function(position) {
+      if (position.node === textNode && position.offset > offset) {
+        position.node = newTextNode;
+        position.offset -= offset;
+      } else if (position.node === textNode.parentNode && position.offset > getNodeIndex(textNode)) {
+        ++position.offset;
+      }
+    });
+
+    return newTextNode
+  }
+
+
+  function movePreservingPositions(position, oldParent, oldIndex, newParent, newIndex) {
+
+  }
+
+  /**
+   *
    * @param {Node} node
    * @param {DomPosition[]} positionsToPreserve
    */
@@ -335,15 +388,6 @@
 
   /**
    *
-   * @param {Node | HTMLElement} element
-   * @return {ChildNode[]}
-   */
-  function replaceWithOwnChildren(element) {
-    return moveChildren(element, element.parentNode, getNodeIndex(element), true);
-  }
-
-  /**
-   *
    * @param {Node} node
    * @param {ParentNode} newParent
    * @param {number} newIndex
@@ -427,28 +471,6 @@
     } else {
       parentNode.appendChild(insertNode);
     }
-  }
-
-  /**
-   *
-   * @param {Text} textNode
-   * @param {number} offset
-   * @param {DomPosition[]} positionsToPreserve
-   * @return {Text}
-   */
-  function splitTextPositionsPreserve(textNode, offset, positionsToPreserve) {
-    const newTextNode = textNode.splitText(offset);
-
-    positionsToPreserve && positionsToPreserve.forEach(function(position) {
-      if (position.node === textNode && position.offset > offset) {
-        position.node = newTextNode;
-        position.offset -= offset;
-      } else if (position.node === textNode.parentNode && position.offset > getNodeIndex(textNode)) {
-        ++position.offset;
-      }
-    });
-
-    return newTextNode
   }
 
   /**
@@ -718,6 +740,12 @@
     },
     insertAfter: function(insertNode, precedingNode) {
       insertAfter(this, insertNode, precedingNode);
+    },
+    getIndex: function() {
+      return getNodeIndex(this);
+    },
+    remove: function() {
+      return removeNode(this);
     }
   }
 
@@ -857,10 +885,14 @@
     /**
      *
      * @param {Range} range
+     * @param {Range[]} [ranges]
      */
-    undoToRange: function(range) {
+    undoToRange: function(range, ranges) {
       const tinter = this;
-      range.splitBoundariesPreservingPositions();
+
+      const positionsToPreserve = getRangeBoundaries(ranges);
+
+      range.splitBoundariesPreservingPositions(positionsToPreserve);
 
       if (this.removeEmptyElements) {
         tinter.removeEmptyContainers(range);
@@ -871,21 +903,24 @@
       textNodes.forEach(function(textNode) {
         const ancestorWithClass = tinter.getSelfOrAncestorWithClass(textNode);
         if (ancestorWithClass) {
-          tinter.undoToAncestor(ancestorWithClass)
+          tinter.undoToAncestor(ancestorWithClass, positionsToPreserve);
         }
       });
 
-      tinter.infectApply(textNodes, range, true);
+      // tinter.infectApply(textNodes, range, true);
+
+      updateRangesFromBoundaries(ranges, positionsToPreserve);
 
     },
 
     /**
      *
      * @param {Node} ancestorWithClass
+     * @param {DomPosition[]} positionsToPreserve
      */
-    undoToAncestor: function(ancestorWithClass) {
+    undoToAncestor: function(ancestorWithClass, positionsToPreserve) {
       if (this.isRemovable(ancestorWithClass)) {
-        replaceWithOwnChildren(ancestorWithClass);
+        replaceWithOwnChildrenPreservingPositions(ancestorWithClass, positionsToPreserve);
       }
     },
 
@@ -896,7 +931,7 @@
     /**
      *
      * @param {Range} range
-     * @param {Range[]} ranges
+     * @param {Range[]} [ranges]
      */
     applyToRange: function(range, ranges) {
       const tinter = this;
@@ -922,9 +957,24 @@
         const lastTextNode = textNodes[textNodes.length - 1];
         range.setStartAndEnd(textNodes[0], 0, lastTextNode, lastTextNode.length);
 
-        tinter.infectApply(textNodes, range, false);
+        tinter.infectApply(textNodes, range, false, positionsToPreserve);
+
+        // 从保留的边界位置更新范围
+        updateRangesFromBoundaries(ranges, positionsToPreserve);
       }
     },
+
+    /**
+     *
+     * @param {Range[]} ranges
+     */
+    undoToRanges: function(ranges) {
+      let i = ranges.length;
+      while(i--) {
+        this.undoToRange(ranges[i], ranges);
+      }
+    },
+
     /**
      *
      * @param {Range[]} ranges
@@ -934,10 +984,6 @@
       while(i--) {
         this.applyToRange(ranges[i], ranges);
       }
-    },
-    applyToSelection: function() {
-      const sel = api.getSelection();
-      this.applyToRanges(sel.getAllRanges());
     },
     /**
      *
@@ -976,8 +1022,9 @@
      * @param {Text[]} textNodes
      * @param {Range} range
      * @param {boolean} isUndo
+     * @param {DomPosition[]} positionsToPreserve
      */
-    infectApply: function(textNodes, range, isUndo) {
+    infectApply: function(textNodes, range, isUndo, positionsToPreserve) {
       const firstTextNode = textNodes[0], lastTextNode = textNodes[textNodes.length - 1];
       let currentMerge = null, merges = [];
 
@@ -1022,7 +1069,7 @@
 
       if (merges.length) {
         merges.forEach(function(merge) {
-          merge.doMerge();
+          merge.doMerge(positionsToPreserve);
         });
 
         range.setStartAndEnd(rangeStartNode, rangeStartOffset, rangeEndNode, rangeEndOffset);
@@ -1038,7 +1085,7 @@
       if (range.collapsed || range.toString() === '') {
         return !!this.getSelfOrAncestorWithClass(range.commonAncestorContainer);
       } else {
-        const textNodes = getEffectiveTextNodes(range);
+        const textNodes = range.getEffectiveTextNodes();
         for (let i = 0, textNode; i < textNodes.length; ++i) {
           textNode = textNodes[i];
           if (!this.getSelfOrAncestorWithClass(textNode)) {
@@ -1049,6 +1096,44 @@
 
       return true;
     },
+
+    isTinterToRanges: function(ranges) {
+      let i = ranges.length;
+      while(i--) {
+        if (!this.isTinterToRange(ranges[i])) {
+          return false;
+        }
+      }
+
+      return true;
+    },
+
+    undoToSelection: function() {
+      const sel = api.getSelection();
+      this.undoToRanges(sel.getAllRanges());
+    },
+
+    applyToSelection: function() {
+      const sel = api.getSelection();
+      this.applyToRanges(sel.getAllRanges());
+    },
+
+    /**
+     * @return {boolean}
+     */
+    isTinterToSelection: function() {
+      const sel = api.getSelection();
+      return this.isTinterToRanges(sel.getAllRanges())
+    },
+
+    toggleSelection: function() {
+      if (this.isTinterToSelection()) {
+        this.undoToSelection();
+      } else {
+        this.applyToSelection();
+      }
+    },
+
     /**
      *
      * @param {Node} node
@@ -1070,6 +1155,14 @@
      */
     hasClass: function(node) {
       return node.nodeType === 1 && hasClass(node, this.className);
+    },
+    /**
+     *
+     * @param {Range[]} ranges
+     * @return {DomPosition[]}
+     */
+    getRangeBoundaries: function(ranges) {
+      return getRangeBoundaries(ranges);
     }
   }
 
@@ -1133,8 +1226,13 @@
   }
   /** @lends {Merge} */
   Merge.prototype = {
-    doMerge: function() {
-      const firstTextNode = this.textNodes[0], textParts = [];
+    /**
+     *
+     * @param {DomPosition[]} positionsToPreserve
+     * @return {string}
+     */
+    doMerge: function(positionsToPreserve) {
+      let firstTextNode = this.textNodes[0], combinedTextLength = 0, textParts = [];
       this.textNodes.forEach(function(textNode, i) {
         if (i > 0) {
           const parentNode = textNode.parentNode;
@@ -1142,8 +1240,15 @@
           if (!parentNode.hasChildNodes()) {
             removeNode(parentNode);
           }
+          positionsToPreserve && positionsToPreserve.forEach(function(position) {
+            if (textNode === position.node) {
+              position.node = firstTextNode;
+              position.offset += combinedTextLength;
+            }
+          });
         }
         textParts[i] = textNode.data;
+        combinedTextLength += textNode.data.length;
       });
 
       firstTextNode.data = textParts.join('');
@@ -1254,6 +1359,10 @@
     return new Tinter(className, options);
   }
 
+  function createMerge(firstNode) {
+    return new Merge(firstNode);
+  }
+
   function getSelection() {
     return window.getSelection();
   }
@@ -1279,6 +1388,8 @@
   api.createRangeIterator = createRangeIterator;
   api.createHighlighter = createHighlighter;
   api.createTinter = createTinter;
+  api.createMerge = createMerge;
   api.getSelection = getSelection;
+
   return api;
 }, window);
