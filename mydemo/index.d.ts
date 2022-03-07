@@ -69,6 +69,7 @@ interface Range {
 }
 
 interface Tinter {
+  className: string;
   elementTagName: string;
   createWrapperContainer(parentNode: ParentNode): HTMLElement;
   applyToTextNode(textNode: Text): void;
@@ -109,6 +110,8 @@ interface Tinter {
    * @param range
    */
   removeEmptyContainers(range: Range): void;
+
+  isEmptyContainer(el: Node): boolean;
   /**
    * 如果range被class上色, 将颜色移除, 否则上色
    * @param range
@@ -119,6 +122,23 @@ interface Tinter {
    * 为当前的选择上色
    */
   applyToSelection(): void;
+
+  /**
+   * 抹除当前选择的上色
+   */
+  undoToSelection(): void;
+
+  /**
+   *
+   */
+  toggleSelection(): void;
+
+  getRangeBoundaries(ranges: Range[]): DomPosition[];
+}
+
+interface DomPosition {
+  node: Node;
+  offset: number;
 }
 
 interface RangeIterator {}
@@ -147,8 +167,15 @@ interface TinterOptions {
   };
 }
 
+interface Merge {
+  firstNode: Node;
+  textNodes: Text[];
+  doMerge(positionsToPreserve?: DomPosition[]): string;
+}
+
 interface Aery {
   createTinter(className: string, options?: TinterOptions): Tinter;
+  createMerge(firstNode: Node | Text): Merge;
   createRangeIterator(range: Range): RangeIterator;
   util: Util
   dom: Dom
