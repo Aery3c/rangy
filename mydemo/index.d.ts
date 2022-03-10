@@ -76,13 +76,14 @@ interface Tinter {
   /**
    * 将class应用到range.
    */
-  applyToRange(range: Range, ranges: Range[]): void;
+  applyToRange(range: Range, rangesToPreserve?: Range[]): void;
 
   /**
    * 从range上移除class
    * @param range
+   * @param rangesToPreserve
    */
-  undoToRange(range: Range): void;
+  undoToRange(range: Range, rangesToPreserve?: Range[]): void;
 
   /**
    * 如果range已被class上色, 那么返回true, 否则fasle.
@@ -109,7 +110,7 @@ interface Tinter {
    * 删除range路线上存在的空元素
    * @param range
    */
-  removeEmptyContainers(range: Range): void;
+  removeEmptyContainers(range: Range, positionsToPreserve?: DomPosition[]): void;
 
   isEmptyContainer(el: Node): boolean;
   /**
@@ -169,7 +170,7 @@ interface TinterOptions {
 
 interface Merge {
   firstNode: Node;
-  textNodes: Text[];
+  textNodes: Node[];
   doMerge(positionsToPreserve?: DomPosition[]): string;
 }
 
