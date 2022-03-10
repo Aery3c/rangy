@@ -825,10 +825,29 @@
   }
 
   /** Highlighter 荧光笔 */
-  function Highlighter() {}
+  function Highlighter() {
+    this.tinters = [];
+  }
 
   Highlighter.prototype = {
+    /**
+     *
+     * @param {Tinter} tinter
+     */
+    addTinter: function(tinter) {
+      this.tinters[tinter.className] = tinter;
+    },
 
+    /**
+     *
+     * @param {string} className
+     * @param {Range[]} ranges
+     * @param {{}} options
+     */
+    highlightRanges: function(className, ranges, options) {
+      const selCharRanges = [];
+
+    }
   }
 
   function each(obj, func) {
