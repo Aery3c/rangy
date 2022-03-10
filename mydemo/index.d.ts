@@ -174,10 +174,16 @@ interface Merge {
   doMerge(positionsToPreserve?: DomPosition[]): string;
 }
 
+interface Highlighter {
+  addTinter(tinter: Tinter): void;
+  highlightRanges(className: string, ranges: Range[], options: {}): void;
+}
+
 interface Aery {
   createTinter(className: string, options?: TinterOptions): Tinter;
   createMerge(firstNode: Node | Text): Merge;
   createRangeIterator(range: Range): RangeIterator;
+  createHighlighter(): Highlighter;
   util: Util
   dom: Dom
 }
