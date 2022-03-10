@@ -26,23 +26,63 @@
    * @return {ChildNode[]}
    */
   function replaceWithOwnChildrenPreservingPositions(element, positionsToPreserve) {
-    return moveChildrenPreservingPositions(element, positionsToPreserve);
+    return moveChildrenPreservingPositions(element, element.parentNode, element.getIndex(), true, positionsToPreserve);
   }
 
-  function moveChildrenPreservingPositions(element, positionsToPreserve) {
+  function moveChildrenPreservingPositions(node, parentNode, index, isRemoveSelf, positionsToPreserve) {
+    let child, children = [];
 
-    let oldParent = element, oldIndex = getNodeIndex(element), newParent = element.parentNode;
-    let newIndex = oldIndex++;
+    while ((child = node.firstChild)) {
+      movePreservingPositions(child, parentNode, index++, positionsToPreserve);
+      children.push(child)
+    }
 
-    const children = moveChildren(element, element.parentNode, getNodeIndex(element), true);
+    if (isRemoveSelf) {
+      node.remove();
+    }
 
-    positionsToPreserve.forEach(function (position) {
-      // movePreservingPositions(child, newParent, newIndex++, positionsToPreserve);
-      console.log(oldParent, oldIndex, newParent, newIndex);
+    return children;
+  }
 
+  function movePreservingPositions(node, newParent, newIndex, positionsToPreserve) {
+    if (newIndex === -1) {
+      newIndex = newParent.childNodes.length;
+    }
+
+    const oldParent = node.parentNode;
+    const oldIndex = node.getIndex();
+
+    positionsToPreserve.forEach(function(position) {
+      movePosition(position, oldParent, oldIndex, newParent, newIndex);
     });
 
-    return children
+    if (newIndex === newParent.childNodes.length) {
+      newParent.appendChild(node);
+    } else {
+      newParent.insertBefore(node, newParent.childNodes[newIndex]);
+    }
+
+  }
+  // todo oldIndex + 1
+  function movePosition(position, oldParent, oldIndex, newParent, newIndex) {
+    let posNode = position.node, posOffset = position.offset;
+    let newNode = posNode, newOffset = posOffset;
+
+    if (posNode === newParent && posOffset > newIndex) {
+      ++newOffset;
+    }
+
+    if (posNode === oldParent && (posOffset === oldIndex  || posOffset === oldIndex + 1)) {
+      newNode = newParent;
+      newOffset += newIndex - oldIndex;
+    }
+
+    if (posNode === oldParent && posOffset > oldIndex + 1) {
+      --newOffset;
+    }
+
+    position.node = newNode;
+    position.offset = newOffset;
   }
 
   /**
@@ -65,11 +105,6 @@
     });
 
     return newTextNode
-  }
-
-
-  function movePreservingPositions(position, oldParent, oldIndex, newParent, newIndex) {
-
   }
 
   /**
@@ -885,17 +920,17 @@
     /**
      *
      * @param {Range} range
-     * @param {Range[]} [ranges]
+     * @param {Range[]} [rangesToPreserve]
      */
-    undoToRange: function(range, ranges) {
+    undoToRange: function(range, rangesToPreserve) {
       const tinter = this;
-
-      const positionsToPreserve = getRangeBoundaries(ranges);
+      rangesToPreserve = rangesToPreserve || [];
+      const positionsToPreserve = this.getRangeBoundaries(rangesToPreserve);
 
       range.splitBoundariesPreservingPositions(positionsToPreserve);
 
       if (this.removeEmptyElements) {
-        tinter.removeEmptyContainers(range);
+        tinter.removeEmptyContainers(range, positionsToPreserve);
       }
 
       const textNodes = range.getNodes([Node.TEXT_NODE]);
@@ -907,10 +942,9 @@
         }
       });
 
-      // tinter.infectApply(textNodes, range, true);
+      // tinter.infectApply(textNodes, range, true, positionsToPreserve);
 
-      updateRangesFromBoundaries(ranges, positionsToPreserve);
-
+      updateRangesFromBoundaries(rangesToPreserve, positionsToPreserve);
     },
 
     /**
@@ -931,17 +965,17 @@
     /**
      *
      * @param {Range} range
-     * @param {Range[]} [ranges]
+     * @param {Range[]} [rangesToPreserve]
      */
-    applyToRange: function(range, ranges) {
+    applyToRange: function(range, rangesToPreserve) {
       const tinter = this;
-
-      const positionsToPreserve = getRangeBoundaries(ranges);
+      rangesToPreserve = rangesToPreserve || [];
+      const positionsToPreserve = getRangeBoundaries(rangesToPreserve);
       // 分割边界
       range.splitBoundariesPreservingPositions(positionsToPreserve);
 
       if (this.removeEmptyElements) {
-        tinter.removeEmptyContainers(range);
+        tinter.removeEmptyContainers(range, positionsToPreserve);
       }
 
       // 获取范围中包含的所有文本节点
@@ -960,7 +994,7 @@
         tinter.infectApply(textNodes, range, false, positionsToPreserve);
 
         // 从保留的边界位置更新范围
-        updateRangesFromBoundaries(ranges, positionsToPreserve);
+        updateRangesFromBoundaries(rangesToPreserve, positionsToPreserve);
       }
     },
 
@@ -988,15 +1022,16 @@
     /**
      *
      * @param {Range} range
+     * @param {DomPosition[]} positionsToPreserve
      */
-    removeEmptyContainers: function(range) {
+    removeEmptyContainers: function(range, positionsToPreserve) {
       const tinter = this;
       const nodesToRemove  = range.getNodes([Node.ELEMENT_NODE], function(el) {
         return tinter.isEmptyContainer(el);
       });
 
       const rangesToPreserve = [range];
-      const positionsToPreserve = getRangeBoundaries(rangesToPreserve);
+      positionsToPreserve = positionsToPreserve || getRangeBoundaries(rangesToPreserve);
 
       nodesToRemove.forEach(function(node) {
         removePreservingPositions(node, positionsToPreserve);
@@ -1162,6 +1197,7 @@
      * @return {DomPosition[]}
      */
     getRangeBoundaries: function(ranges) {
+      ranges = ranges || [];
       return getRangeBoundaries(ranges);
     }
   }
@@ -1232,18 +1268,21 @@
      * @return {string}
      */
     doMerge: function(positionsToPreserve) {
-      let firstTextNode = this.textNodes[0], combinedTextLength = 0, textParts = [];
+      let firstTextNode = this.textNodes[0], firstTextNodeIndex = firstTextNode.getIndex(), combinedTextLength = 0, textParts = [];
       this.textNodes.forEach(function(textNode, i) {
         if (i > 0) {
-          const parentNode = textNode.parentNode;
+          let parentNode = textNode.parentNode, oldParentNode;
           removeNode(textNode)
           if (!parentNode.hasChildNodes()) {
+            oldParentNode = parentNode.parentNode;
             removeNode(parentNode);
           }
           positionsToPreserve && positionsToPreserve.forEach(function(position) {
             if (textNode === position.node) {
               position.node = firstTextNode;
               position.offset += combinedTextLength;
+            } else if (oldParentNode === position.node && position.offset > firstTextNodeIndex) {
+              --position.offset;
             }
           });
         }
