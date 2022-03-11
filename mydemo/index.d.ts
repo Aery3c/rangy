@@ -66,6 +66,16 @@ interface Range {
    * range是否健康
    */
   isRangeValid(): boolean;
+
+  getBookMark(containerNode?: Node): BookMark;
+
+  moveToBookMark(bookmark: BookMark): void;
+}
+
+interface BookMark {
+  start: number;
+  end: number;
+  containerNode: Node | Document;
 }
 
 interface Tinter {
@@ -174,9 +184,29 @@ interface Merge {
   doMerge(positionsToPreserve?: DomPosition[]): string;
 }
 
+interface HighlightOptions {
+  containerElement?: HTMLElement;
+}
+
 interface Highlighter {
+  prototype: Highlighter;
+  new(): Highlighter
+  tinters: Tinter[];
+  marks: Mark[];
   addTinter(tinter: Tinter): void;
-  highlightRanges(className: string, ranges: Range[], options: {}): void;
+  highlightRanges(className: string, ranges: Range[], options: HighlightOptions): Mark[];
+  highlightCharacterRanges(className: string, characterRanges: CharacterRange[], options: HighlightOptions): Mark[];
+}
+
+interface Mark {
+  prototype: Mark;
+  new(tinter: Tinter, characterRange: CharacterRange): Mark;
+  apply(): void;
+}
+
+interface CharacterRange {
+  prototype: CharacterRange;
+  new(start: number, end: number): CharacterRange
 }
 
 interface Aery {
