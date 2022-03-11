@@ -189,6 +189,17 @@
       && rangeA.compareBoundaryPoints(rangeB.END_TO_START, rangeB) < 0;
   }
 
+  function createOptions(optionsParam, defaults) {
+    const options = {};
+    extend(options, defaults);
+
+    if (typeof optionsParam === 'object') {
+      extend(options, optionsParam);
+    }
+
+    return options;
+  }
+
   /**
    *
    * @example str = 'c b a' sortClassName(str) -> 'a b c'
@@ -715,7 +726,46 @@
     getNodes: function(nodeTypes, filter) {
       return getNodesInRange(this, nodeTypes, filter);
     },
-    getBookMark: function() {},
+
+    /** @typedef {{ start: number, end: number, containerNode: Node | Document }} BookMark */
+
+    /**
+     *
+     * @param {Node} [containerNode]
+     * @return {BookMark}
+     */
+    getBookMark: function(containerNode) {
+      containerNode = containerNode || document;
+      const allSelectRange = document.createRange();
+      allSelectRange.selectNodeContents(containerNode);
+      const intersectionRange = this.intersection(allSelectRange);
+      let start = 0, end = 0;
+      if (intersectionRange) {
+        allSelectRange.setEnd(intersectionRange.endContainer, intersectionRange.endOffset);
+        start = allSelectRange.toString().length - (intersectionRange.endOffset - intersectionRange.startOffset);
+        end = allSelectRange.toString().length;
+      }
+      return {
+        start,
+        end,
+        containerNode
+      }
+    },
+
+    /**
+     *
+     * @param {BookMark} bookmark
+     */
+    moveToBookMark: function(bookmark) {
+      const containerNode = bookmark.containerNode;
+      this.setStart(containerNode, 0);
+      this.collapse(true); // 折叠到开头
+      let stop = false;
+      while (!stop) {
+        stop = true;
+      }
+      // todo
+    },
 
     inspect: function() {
       return inspect(this);
@@ -824,9 +874,37 @@
     }
   }
 
+  /**
+   *
+   * @param {Range} range
+   * @param {Node} containerNode
+   * @return {CharacterRange}
+   *
+   */
+  function rangeToCharacterRange(range, containerNode) {
+    const bookmark = range.getBookMark(containerNode);
+    return new CharacterRange(bookmark.start, bookmark.end);
+  }
+
+  /**
+   *
+   * @param {CharacterRange} characterRange
+   * @param {Node} containerNode
+   * @return {Range}
+   */
+  function characterRangeToRange(characterRange, containerNode) {
+    const range = document.createRange();
+    range.moveToBookMark({
+      start: characterRange.start,
+      end: characterRange.end,
+      containerNode: containerNode
+    });
+  }
+
   /** Highlighter 荧光笔 */
   function Highlighter() {
     this.tinters = [];
+    this.marks = [];
   }
 
   Highlighter.prototype = {
@@ -842,12 +920,73 @@
      *
      * @param {string} className
      * @param {Range[]} ranges
-     * @param {{}} options
+     * @param {{ containerElement?: HTMLElement }} options
      */
     highlightRanges: function(className, ranges, options) {
       const selCharRanges = [];
 
+      options = createOptions(options, {
+        containerElement: document
+      });
+      let containerElement = options.containerElement, containerElementRange;
+      if (containerElement) {
+        containerElementRange = document.createRange();
+        containerElementRange.selectNodeContents(containerElement);
+      }
+
+      ranges.forEach(function(range) {
+        const scopedRange = containerElementRange ? containerElementRange.intersection(range) : range;
+        selCharRanges.push( rangeToCharacterRange(scopedRange, containerElement) );
+      });
+
+      return this.highlightCharacterRanges(className, selCharRanges, options);
+    },
+
+    /**
+     *
+     * @param {string} className
+     * @param {CharacterRange[]} characterRanges
+     * @param {HighlightOptions} options
+     */
+    highlightCharacterRanges: function(className, characterRanges, options) {
+      const marks = this.marks;
+      const tinter = className ? this.tinters[className] : null;
+
+      options = createOptions(options, {
+        containerElement: document
+      });
+
+      characterRanges.forEach(function(characterRange) {
+
+      });
+
+      // marks.forEach(function(mark) {
+      //   mark.apply();
+      // });
+      characterRangeToRange(characterRanges[0], options.containerElement);
     }
+  }
+
+  /** Mark 标记 */
+  function Mark(tinter, characterRange) {
+    this.tinter = tinter;
+    this.characterRange = characterRange;
+  }
+
+  Mark.prototype = {
+    apply: function() {
+
+    }
+  }
+
+  /** CharacterRange 字符范围 */
+  function CharacterRange(start, end) {
+    this.start = start;
+    this.end = end;
+  }
+
+  CharacterRange.prototype = {
+
   }
 
   function each(obj, func) {
