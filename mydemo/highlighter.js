@@ -63,7 +63,7 @@
     }
 
   }
-  // todo oldIndex + 1
+
   function movePosition(position, oldParent, oldIndex, newParent, newIndex) {
     let posNode = position.node, posOffset = position.offset;
     let newNode = posNode, newOffset = posOffset;
@@ -760,11 +760,31 @@
       const containerNode = bookmark.containerNode;
       this.setStart(containerNode, 0);
       this.collapse(true); // 折叠到开头
-      let stop = false;
-      while (!stop) {
-        stop = true;
+      let foundEnd = false, foundStart = false, nodeStack = [containerNode], node;
+
+      let nextCharIndex, charIndex = 0;
+
+      while (!foundEnd && (node = nodeStack.pop())) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          nextCharIndex = charIndex + node.length;
+          if (!foundStart && bookmark.start >= charIndex && bookmark.start <= nextCharIndex) {
+            this.setStart(node, bookmark.start - charIndex);
+            foundStart = true;
+          }
+
+          if (foundStart && bookmark.end >= charIndex && bookmark.end <= nextCharIndex) {
+            this.setEnd(node, bookmark.end - charIndex);
+            foundEnd = true;
+          }
+
+          charIndex = nextCharIndex;
+        } else {
+          let childNodes = node.childNodes, i = childNodes.length;
+          while (i--) {
+            nodeStack.push(childNodes[i]);
+          }
+        }
       }
-      // todo
     },
 
     inspect: function() {
@@ -899,6 +919,7 @@
       end: characterRange.end,
       containerNode: containerNode
     });
+    return range;
   }
 
   /** Highlighter 荧光笔 */
@@ -957,13 +978,18 @@
       });
 
       characterRanges.forEach(function(characterRange) {
+        if (characterRange.start === characterRange.end) {
+          return false // Ignore empty ranges
+        }
+        // todo
+
 
       });
 
-      // marks.forEach(function(mark) {
-      //   mark.apply();
-      // });
-      characterRangeToRange(characterRanges[0], options.containerElement);
+      marks.forEach(function(mark) {
+        mark.apply();
+      });
+
     }
   }
 
