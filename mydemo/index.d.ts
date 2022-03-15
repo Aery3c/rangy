@@ -165,6 +165,8 @@ interface Dom {
   removeNode<T extends Node>(node: T): T;
   moveChildren<T extends Node>(node: Node, newParent: ParentNode, newIndex: number, isRemoveSelf: boolean): ChildNode[];
   moveNode<T extends Node>(node: T, parentNode: ParentNode, index: number): T;
+  getClosestAncestorIn(node: Node, ancestor: Node, selfIsAncestor: boolean): Node | null;
+  getCommonAncestor(nodeA: Node, nodeB: Node): Node | null;
 }
 
 interface Node {
@@ -186,6 +188,7 @@ interface Merge {
 
 interface HighlightOptions {
   containerElement?: HTMLElement;
+  containerElementId?: string;
 }
 
 interface Highlighter {
@@ -196,11 +199,12 @@ interface Highlighter {
   addTinter(tinter: Tinter): void;
   highlightRanges(className: string, ranges: Range[], options: HighlightOptions): Mark[];
   highlightCharacterRanges(className: string, characterRanges: CharacterRange[], options: HighlightOptions): Mark[];
+  highlightSelection(className: string, options?: HighlightOptions): Mark[];
 }
 
 interface Mark {
   prototype: Mark;
-  new(tinter: Tinter, characterRange: CharacterRange): Mark;
+  new(tinter: Tinter, characterRange: CharacterRange, containerNode: Node): Mark;
   apply(): void;
 }
 
