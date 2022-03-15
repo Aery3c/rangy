@@ -804,12 +804,12 @@
       containerNode = containerNode || document;
       const allSelectRange = document.createRange();
       allSelectRange.selectNodeContents(containerNode);
-      const intersectionRange = this.intersection(allSelectRange);
+      const range = this.intersection(allSelectRange);
       let start = 0, end = 0;
-      if (intersectionRange) {
-        allSelectRange.setEnd(intersectionRange.endContainer, intersectionRange.endOffset);
-        start = allSelectRange.toString().length - (intersectionRange.endOffset - intersectionRange.startOffset);
-        end = allSelectRange.toString().length;
+      if (range) {
+        allSelectRange.setEnd(range.startContainer, range.startOffset);
+        start = allSelectRange.toString().length;
+        end = start + range.toString().length;
       }
       return {
         start,
@@ -922,6 +922,10 @@
 
   const selProto = {
     /** @lends Selection.prototype */
+    highlight: function(className, options) {
+
+    },
+
     eachRange: function(func) {
       for (let i = 0; i < this.rangeCount; ++i) {
         if (func(this.getRangeAt(i)) === false) {
@@ -1000,6 +1004,7 @@
    *
    * @param {Selection} selection
    * @param {Node} containerNode
+   * @return {{ characterRange: CharacterRange, backward: boolean }[]}
    */
   function serializeSelection(selection, containerNode) {
     const ranges = selection.getAllRanges(), rangeCount = ranges.length;
@@ -1016,6 +1021,22 @@
     return rangeInfos;
   }
 
+  /**
+   *
+   * @param {Selection} selection
+   * @param {{ characterRange: CharacterRange, backward: boolean; }[]} savedSelection
+   * @param {Node} containerNode
+   */
+  function restoreSelection(selection, savedSelection, containerNode) {
+    selection.removeAllRanges();
+    for (let i = 0, len = savedSelection.length, range, rangeInfo, characterRange; i < len; ++i) {
+      rangeInfo = savedSelection[i];
+      characterRange = rangeInfo.characterRange;
+      range = characterRangeToRange(rangeInfo.characterRange, containerNode);
+      selection.addRange(range);
+    }
+  }
+
   /** Highlighter 荧光笔 */
   function Highlighter() {
     this.tinters = [];
@@ -1030,94 +1051,110 @@
     addTinter: function(tinter) {
       this.tinters[tinter.className] = tinter;
     },
-
-    /**
-     *
-     * @param {string} className
-     * @param {Range[]} ranges
-     * @param {{ containerElement?: HTMLElement }} options
-     */
-    highlightRanges: function(className, ranges, options) {
-      const selCharRanges = [];
-
-      options = createOptions(options, {
-        containerElement: document
-      });
-      let containerElement = options.containerElement, containerElementRange;
-      if (containerElement) {
-        containerElementRange = document.createRange();
-        containerElementRange.selectNodeContents(containerElement);
-      }
-
-      ranges.forEach(function(range) {
-        const scopedRange = containerElementRange ? containerElementRange.intersection(range) : range;
-        selCharRanges.push( rangeToCharacterRange(scopedRange, containerElement) );
-      });
-
-      return this.highlightCharacterRanges(className, selCharRanges, options);
-    },
+    // todo refactor
+    // /**
+    //  *
+    //  * @param {string} className
+    //  * @param {Range[]} ranges
+    //  * @param {{ containerElement?: HTMLElement }} options
+    //  */
+    // highlightRanges: function(className, ranges, options) {
+    //   const selCharRanges = [];
+    //
+    //   options = createOptions(options, {
+    //     containerElement: document
+    //   });
+    //   let containerElement = options.containerElement, containerElementRange;
+    //   if (containerElement) {
+    //     containerElementRange = document.createRange();
+    //     containerElementRange.selectNodeContents(containerElement);
+    //   }
+    //
+    //   ranges.forEach(function(range) {
+    //     const scopedRange = containerElementRange ? containerElementRange.intersection(range) : range;
+    //     selCharRanges.push( rangeToCharacterRange(scopedRange, containerElement) );
+    //   });
+    //
+    //   return this.highlightCharacterRanges(className, selCharRanges, options);
+    // },
 
     /**
      *
      * @param {string} className
      * @param {CharacterRange[]} characterRanges
      * @param {HighlightOptions} options
+     * @return {Mark[]}
      */
-    highlightCharacterRanges: function(className, characterRanges, options) {
-      let marks = this.marks;
-      const tinter = className ? this.tinters[className] : null;
+    // highlightCharacterRanges: function(className, characterRanges, options) {
+    //   let marks = this.marks;
+    //   const tinter = className ? this.tinters[className] : null;
+    //
+    //   options = createOptions(options, {
+    //     containerElementId: null,
+    //   });
+    //
+    //   const containerElementId = options.containerElementId;
+    //   const containerElement = getContainerElement(containerElementId);
+    //
+    //   let marksToKeep, removeMark;
+    //
+    //   characterRanges.forEach(function(characterRange) {
+    //     marksToKeep = [];
+    //
+    //     if (characterRange.start === characterRange.end) {
+    //       return false // Ignore empty ranges
+    //     }
+    //
+    //     marks.forEach(function(mark) {
+    //       removeMark = false;
+    //
+    //     });
+    //
+    //     if (tinter) {
+    //       marksToKeep.push( new Mark(tinter, characterRange, containerElement) );
+    //     }
+    //     marks = marksToKeep;
+    //   });
+    //
+    //   const newMarks = [];
+    //   marks.forEach(function(mark) {
+    //     mark.apply();
+    //     newMarks.push(mark);
+    //   });
+    //
+    //   return newMarks;
+    // },
 
-      options = createOptions(options, {
-        containerElement: document
-      });
-
-      let marksToKeep;
-
-      characterRanges.forEach(function(characterRange) {
-        marksToKeep = [];
-
-        if (characterRange.start === characterRange.end) {
-          return false // Ignore empty ranges
-        }
-
-        if (tinter) {
-          marksToKeep.push( new Mark(tinter, characterRange, options.containerElement) );
-        }
-        marks = marksToKeep;
-      });
-
-      const newMarks = [];
-      marks.forEach(function(mark) {
-        mark.apply();
-        newMarks.push(mark);
-      });
-
-      return newMarks;
-    },
-
-    highlightSelection: function(className, options) {
-      const tinter = this.tinters[className];
-
-      options = createOptions(options, {
-        containerElementId: null,
-      })
-
-      const containerElementId = options.containerElementId;
-      const containerElment = getContainerElement(containerElementId);
-      const selection = options.selection || api.getSelection();
-
-      if (!tinter && className) {
-        throw new Error(`No tinter found for class "${className}"`);
-      }
-
-      const serializedSelection = serializeSelection(selection, containerElment);
-
-      const selCharRanges = [];
-      serializedSelection.forEach(function(rangeInfo) {
-        
-      });
-
-    }
+    // highlightSelection: function(className, options) {
+    //   const tinter = this.tinters[className];
+    //
+    //   options = createOptions(options, {
+    //     containerElementId: null,
+    //   })
+    //
+    //   const containerElementId = options.containerElementId;
+    //   const containerElement = getContainerElement(containerElementId);
+    //   const selection = options.selection || api.getSelection();
+    //
+    //   if (!tinter && className) {
+    //     throw new Error(`No tinter found for class "${className}"`);
+    //   }
+    //
+    //   const serializedSelection = serializeSelection(selection, containerElement);
+    //
+    //   const selCharRanges = [];
+    //   serializedSelection.forEach(function(rangeInfo) {
+    //     selCharRanges.push(CharacterRange.fromCharacterRange(rangeInfo.characterRange));
+    //   });
+    //
+    //   const marks = this.highlightCharacterRanges(className, selCharRanges, {
+    //     containerElementId: containerElementId
+    //   });
+    //
+    //   restoreSelection(selection, serializedSelection, containerElement);
+    //
+    //   return marks;
+    // }
 
   }
 
@@ -1150,7 +1187,7 @@
   CharacterRange.fromCharacterRange = function(charRange) {
     return new CharacterRange(charRange.start, charRange.end);
   }
-  
+
   function each(obj, func) {
     for (let i in obj) {
       if (obj.hasOwnProperty(i)) {
