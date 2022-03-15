@@ -421,6 +421,52 @@
   const dom = {}
 
   /**
+   *
+   * @param {string} id
+   * @return {HTMLElement}
+   */
+  function getContainerElement(id) {
+    return id ? gEBI(id) : document.body;
+  }
+
+  /**
+   *
+   * @param {Node} nodeA
+   * @param {number} offsetA
+   * @param {Node} nodeB
+   * @param {number} offsetB
+   * @return {number}
+   */
+  function comparePoints(nodeA, offsetA, nodeB, offsetB) {
+    let nodeC, root, childA, childB;
+    if (nodeA === nodeB) {
+      // case 1: nodes same
+      return offsetA === offsetB ? 0 : offsetA < offsetB ? -1 : 1;
+    } else if ((nodeC = getClosestAncestorIn(nodeA, nodeB, true))) {
+      // case 2: container B is the ancestor node of A
+      return nodeC.getIndex() < offsetB ? -1 : 1;
+    } else if ((nodeC = getClosestAncestorIn(nodeB, nodeA, true))) {
+      // case 3: container A is the ancestor node of B
+      return nodeC.getIndex() >= offsetA ? -1 : 1;
+    } else {
+      if (!(root = getCommonAncestor(nodeA, nodeB))) {
+        // nodes is not same
+        throw new Error('comparePoints error: nodes have no common ancestor')
+      }
+      // case 4: containers are siblings or descendants of siblings
+      childA = (nodeA === root) ? root : getClosestAncestorIn(nodeA, root, true);
+      childB = (nodeB === root) ? root : getClosestAncestorIn(nodeB, root, true);
+
+      return childA.compareDocumentPosition(childB) & document.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
+
+    }
+  }
+
+  function gEBI(id) {
+    return document.getElementById(id);
+  }
+
+  /**
    * @param {Object} attrObj
    * @param {HTMLElement} el
    */
@@ -617,7 +663,6 @@
   /**
    * 获取于祖先节点最接近的子节点
    * @param {Node} node - 当前节点
-   * @param {Node} node - 当前节点
    * @param {Node} ancestor - 祖先节点
    * @param {boolean} selfIsAncestor
    * @return {Node}
@@ -631,6 +676,27 @@
       }
       n = p;
     }
+    return null;
+  }
+
+  /**
+   *
+   * @param {Node} nodeA
+   * @param {Node} nodeB
+   * @return {Node} CommonAncestor
+   */
+  function getCommonAncestor(nodeA, nodeB) {
+    let ancestors = [], n, index;
+    for (n = nodeA; n; n = n.parentNode) {
+      ancestors.push(n);
+    }
+
+    for (n = nodeB; n; n = n.parentNode) {
+      if ((index = ancestors.indexOf(n)) !== -1) {
+        return ancestors[index];
+      }
+    }
+
     return null;
   }
 
@@ -874,6 +940,14 @@
         ranges.push(range);
       });
       return ranges;
+    },
+    /** @this {Selection} */
+    isBackward: function() {
+      let backward = false;
+      if (this.anchorNode && comparePoints(this.anchorNode, this.anchorOffset, this.focusNode, this.focusOffset) === 1) {
+        backward = true;
+      }
+      return backward;
     }
   }
 
@@ -920,6 +994,26 @@
       containerNode: containerNode
     });
     return range;
+  }
+
+  /**
+   *
+   * @param {Selection} selection
+   * @param {Node} containerNode
+   */
+  function serializeSelection(selection, containerNode) {
+    const ranges = selection.getAllRanges(), rangeCount = ranges.length;
+    const rangeInfos = [];
+
+    const backward = rangeCount === 1 && selection.isBackward();
+    for (let i = 0; i < ranges.length; ++i) {
+      rangeInfos[i] = {
+        characterRange: rangeToCharacterRange(ranges[i], containerNode),
+        backward: backward
+      }
+    }
+
+    return rangeInfos;
   }
 
   /** Highlighter 荧光笔 */
@@ -970,38 +1064,76 @@
      * @param {HighlightOptions} options
      */
     highlightCharacterRanges: function(className, characterRanges, options) {
-      const marks = this.marks;
+      let marks = this.marks;
       const tinter = className ? this.tinters[className] : null;
 
       options = createOptions(options, {
         containerElement: document
       });
 
+      let marksToKeep;
+
       characterRanges.forEach(function(characterRange) {
+        marksToKeep = [];
+
         if (characterRange.start === characterRange.end) {
           return false // Ignore empty ranges
         }
-        // todo
 
-
+        if (tinter) {
+          marksToKeep.push( new Mark(tinter, characterRange, options.containerElement) );
+        }
+        marks = marksToKeep;
       });
 
+      const newMarks = [];
       marks.forEach(function(mark) {
         mark.apply();
+        newMarks.push(mark);
+      });
+
+      return newMarks;
+    },
+
+    highlightSelection: function(className, options) {
+      const tinter = this.tinters[className];
+
+      options = createOptions(options, {
+        containerElementId: null,
+      })
+
+      const containerElementId = options.containerElementId;
+      const containerElment = getContainerElement(containerElementId);
+      const selection = options.selection || api.getSelection();
+
+      if (!tinter && className) {
+        throw new Error(`No tinter found for class "${className}"`);
+      }
+
+      const serializedSelection = serializeSelection(selection, containerElment);
+
+      const selCharRanges = [];
+      serializedSelection.forEach(function(rangeInfo) {
+        
       });
 
     }
+
   }
 
   /** Mark 标记 */
-  function Mark(tinter, characterRange) {
+  function Mark(tinter, characterRange, containerNode) {
     this.tinter = tinter;
     this.characterRange = characterRange;
+    this.containerNode = containerNode;
   }
 
   Mark.prototype = {
     apply: function() {
-
+      this.tinter.applyToRange(this.getRange());
+    },
+    getRange: function() {
+      return characterRangeToRange(this.characterRange, this.containerNode);
     }
   }
 
@@ -1015,6 +1147,10 @@
 
   }
 
+  CharacterRange.fromCharacterRange = function(charRange) {
+    return new CharacterRange(charRange.start, charRange.end);
+  }
+  
   function each(obj, func) {
     for (let i in obj) {
       if (obj.hasOwnProperty(i)) {
@@ -1215,7 +1351,7 @@
       });
 
       const rangesToPreserve = [range];
-      positionsToPreserve = positionsToPreserve || getRangeBoundaries(rangesToPreserve);
+      positionsToPreserve = positionsToPreserve.length ? positionsToPreserve : getRangeBoundaries(rangesToPreserve);
 
       nodesToRemove.forEach(function(node) {
         removePreservingPositions(node, positionsToPreserve);
@@ -1595,6 +1731,8 @@
   });
 
   extend(dom, {
+    getCommonAncestor: getCommonAncestor,
+    getClosestAncestorIn: getClosestAncestorIn,
     getNodeIndex: getNodeIndex,
     removeNode: removeNode,
     moveChildren: moveChildren,
