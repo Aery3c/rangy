@@ -119,6 +119,7 @@ interface Tinter {
   /**
    * 删除range路线上存在的空元素
    * @param range
+   * @param positionsToPreserve
    */
   removeEmptyContainers(range: Range, positionsToPreserve?: DomPosition[]): void;
 
@@ -195,16 +196,16 @@ interface Highlighter {
   prototype: Highlighter;
   new(): Highlighter
   tinters: Tinter[];
-  marks: Mark[];
+  Highlights: Highlight[];
   addTinter(tinter: Tinter): void;
-  highlightRanges(className: string, ranges: Range[], options: HighlightOptions): Mark[];
-  highlightCharacterRanges(className: string, characterRanges: CharacterRange[], options: HighlightOptions): Mark[];
-  highlightSelection(className: string, options?: HighlightOptions): Mark[];
+  highlightRanges(className: string, ranges: Range[], options: HighlightOptions): Highlight[];
+  highlightCharacterRanges(className: string, characterRanges: CharacterRange[], options: HighlightOptions): Highlight[];
+  highlightSelection(className: string, options?: HighlightOptions): Highlight[];
 }
 
-interface Mark {
-  prototype: Mark;
-  new(tinter: Tinter, characterRange: CharacterRange, containerNode: Node): Mark;
+interface Highlight {
+  prototype: Highlight;
+  new(tinter: Tinter, characterRange: CharacterRange, containerNode: Node): Highlight;
   apply(): void;
 }
 
