@@ -181,12 +181,27 @@
    *
    * @param {Range} rangeA
    * @param {Range} rangeB
+   * @param {boolean} touchingIsIntersection
+   * @return {boolean}
    */
-  function rangesIntersect(rangeA, rangeB) {
-    // A.e > B.s
-    // A.s < B.e
-    return rangeA.compareBoundaryPoints(rangeB.START_TO_END, rangeB) > 0
-      && rangeA.compareBoundaryPoints(rangeB.END_TO_START, rangeB) < 0;
+  function rangesIntersect(rangeA, rangeB, touchingIsIntersection) {
+
+    const startComparison = rangeA.compareBoundaryPoints(rangeB.END_TO_START, rangeB);
+    const endComparison = rangeA.compareBoundaryPoints(rangeB.START_TO_END, rangeB);
+    /**
+     * union
+     * A.e >= B.s
+     * A.s <= B.e
+     */
+    if (touchingIsIntersection) {
+      return startComparison <= 0 && endComparison >= 0;
+    }
+    /**
+     * intersect
+     * A.e > B.s
+     * A.s < B.e
+     */
+    return startComparison < 0 && endComparison > 0;
   }
 
   function createOptions(optionsParam, defaults) {
@@ -866,10 +881,10 @@
     /**
      *
      * @param {Range} sourceRange
-     * @return {Range|null}
+     * @return {Range | null}
      */
     intersection: function(sourceRange) {
-      if (rangesIntersect(this, sourceRange)) {
+      if (rangesIntersect(this, sourceRange, false)) {
         const intersectionRange = this.cloneRange();
         if (intersectionRange.compareBoundaryPoints(sourceRange.START_TO_START,sourceRange) === -1) {
           intersectionRange.setStart(sourceRange.startContainer, sourceRange.startOffset);
@@ -902,7 +917,30 @@
         --end;
       }
       return textNodes.slice(start, end + 1);
-    }
+    },
+
+    /**
+     *
+     * @param {Range} sourceRange
+     * @return {Range | null}
+     */
+    union: function(sourceRange) {
+      if (rangesIntersect(this, sourceRange, true)) {
+        const unionRange = this.cloneRange();
+        if (unionRange.compareBoundaryPoints(sourceRange.START_TO_START, sourceRange) === 1) {
+          unionRange.setStart(sourceRange.startContainer, sourceRange.startOffset);
+        }
+
+        if (unionRange.compareBoundaryPoints(sourceRange.END_TO_END, sourceRange) === -1) {
+          unionRange.setEnd(sourceRange.endContainer, sourceRange.endOffset);
+        }
+
+        return unionRange;
+      }
+
+      return null;
+    },
+
   }
 
   const nodeProto = {
@@ -1001,10 +1039,14 @@
   }
 
   /**
+   * @typedef {{ characterRange: CharacterRange, backward: boolean }} SerializeSelection
+   */
+
+  /**
    *
    * @param {Selection} selection
    * @param {Node} containerNode
-   * @return {{ characterRange: CharacterRange, backward: boolean }[]}
+   * @return SerializeSelection[]
    */
   function serializeSelection(selection, containerNode) {
     const ranges = selection.getAllRanges(), rangeCount = ranges.length;
@@ -1024,7 +1066,7 @@
   /**
    *
    * @param {Selection} selection
-   * @param {{ characterRange: CharacterRange, backward: boolean; }[]} savedSelection
+   * @param {SerializeSelection[]} savedSelection
    * @param {Node} containerNode
    */
   function restoreSelection(selection, savedSelection, containerNode) {
@@ -1037,10 +1079,18 @@
     }
   }
 
+  /**
+   * @typedef {{ containerElementId?: string; selection?: Selection; }} HighlightOptions
+   */
+
   /** Highlighter 荧光笔 */
   function Highlighter() {
     this.tinters = [];
-    this.marks = [];
+    /**
+     * @name Highlighter#highlights
+     * @type {Highlight[]}
+     */
+    this.highlights = [];
   }
 
   Highlighter.prototype = {
@@ -1051,126 +1101,117 @@
     addTinter: function(tinter) {
       this.tinters[tinter.className] = tinter;
     },
-    // todo refactor
-    // /**
-    //  *
-    //  * @param {string} className
-    //  * @param {Range[]} ranges
-    //  * @param {{ containerElement?: HTMLElement }} options
-    //  */
-    // highlightRanges: function(className, ranges, options) {
-    //   const selCharRanges = [];
-    //
-    //   options = createOptions(options, {
-    //     containerElement: document
-    //   });
-    //   let containerElement = options.containerElement, containerElementRange;
-    //   if (containerElement) {
-    //     containerElementRange = document.createRange();
-    //     containerElementRange.selectNodeContents(containerElement);
-    //   }
-    //
-    //   ranges.forEach(function(range) {
-    //     const scopedRange = containerElementRange ? containerElementRange.intersection(range) : range;
-    //     selCharRanges.push( rangeToCharacterRange(scopedRange, containerElement) );
-    //   });
-    //
-    //   return this.highlightCharacterRanges(className, selCharRanges, options);
-    // },
+    /**
+     *
+     * @param {string} className
+     * @param {HighlightOptions} options
+     * @return {Highlight[]}
+     */
+    highlightSelection: function(className, options) {
+      const tinter = this.tinters[className];
+      const containerElementId = options.containerElementId;
+      const containerElement = getContainerElement(containerElementId);
+
+      const selection = options.selection || api.getSelection();
+
+      if (!tinter && className) {
+        throw new Error(`highlightSelection error: No tinter found for class "${className}"`);
+      }
+
+      const serializedSelection = serializeSelection(selection, containerElement);
+
+      const characterRanges = [];
+      serializedSelection.forEach(function(serialize) {
+        characterRanges.push(serialize.characterRange);
+      });
+
+      const highlights = this.highlightCharacterRanges(className, characterRanges, options);
+
+      restoreSelection(selection, serializedSelection, containerElement);
+
+      return highlights;
+    },
 
     /**
      *
      * @param {string} className
      * @param {CharacterRange[]} characterRanges
      * @param {HighlightOptions} options
-     * @return {Mark[]}
+     * @return {Highlight[]}
      */
-    // highlightCharacterRanges: function(className, characterRanges, options) {
-    //   let marks = this.marks;
-    //   const tinter = className ? this.tinters[className] : null;
-    //
-    //   options = createOptions(options, {
-    //     containerElementId: null,
-    //   });
-    //
-    //   const containerElementId = options.containerElementId;
-    //   const containerElement = getContainerElement(containerElementId);
-    //
-    //   let marksToKeep, removeMark;
-    //
-    //   characterRanges.forEach(function(characterRange) {
-    //     marksToKeep = [];
-    //
-    //     if (characterRange.start === characterRange.end) {
-    //       return false // Ignore empty ranges
-    //     }
-    //
-    //     marks.forEach(function(mark) {
-    //       removeMark = false;
-    //
-    //     });
-    //
-    //     if (tinter) {
-    //       marksToKeep.push( new Mark(tinter, characterRange, containerElement) );
-    //     }
-    //     marks = marksToKeep;
-    //   });
-    //
-    //   const newMarks = [];
-    //   marks.forEach(function(mark) {
-    //     mark.apply();
-    //     newMarks.push(mark);
-    //   });
-    //
-    //   return newMarks;
-    // },
+    highlightCharacterRanges: function(className, characterRanges, options) {
+      const tinter = this.tinters[className];
+      let highlights = this.highlights;
+      const containerElementId = options.containerElementId;
+      const containerElement = getContainerElement(containerElementId);
 
-    // highlightSelection: function(className, options) {
-    //   const tinter = this.tinters[className];
-    //
-    //   options = createOptions(options, {
-    //     containerElementId: null,
-    //   })
-    //
-    //   const containerElementId = options.containerElementId;
-    //   const containerElement = getContainerElement(containerElementId);
-    //   const selection = options.selection || api.getSelection();
-    //
-    //   if (!tinter && className) {
-    //     throw new Error(`No tinter found for class "${className}"`);
-    //   }
-    //
-    //   const serializedSelection = serializeSelection(selection, containerElement);
-    //
-    //   const selCharRanges = [];
-    //   serializedSelection.forEach(function(rangeInfo) {
-    //     selCharRanges.push(CharacterRange.fromCharacterRange(rangeInfo.characterRange));
-    //   });
-    //
-    //   const marks = this.highlightCharacterRanges(className, selCharRanges, {
-    //     containerElementId: containerElementId
-    //   });
-    //
-    //   restoreSelection(selection, serializedSelection, containerElement);
-    //
-    //   return marks;
-    // }
+      if (!tinter && className) {
+        throw new Error(`highlightCharacterRanges error: No tinter found for class "${className}"`);
+      }
 
+      let highlightToKeep = [], highlightCharRange, isSameTinter, splitHighlight;
+      characterRanges.forEach(function(characterRange) {
+        if (characterRange.start === characterRange.end) {
+          // Ignore empty selection
+          return false
+        }
+
+        // union
+        highlights.forEach(function(highlight) {
+          if (highlight.containerElementId === containerElementId) {
+            highlightCharRange = highlight.characterRange;
+            isSameTinter = (tinter === highlight.tinter);
+            splitHighlight = !isSameTinter;
+
+            if (
+              (highlightCharRange.intersects(characterRange) || highlightCharRange.isContiguousWith(characterRange))
+              && (isSameTinter || splitHighlight)
+            ) {
+              console.log(splitHighlight)
+            }
+
+          }
+        });
+
+        if (tinter) {
+          highlightToKeep.push(new Highlight(tinter, characterRange, containerElementId));
+        }
+      });
+
+      this.highlights = highlights = highlightToKeep;
+
+      const newHighlights = [];
+      highlights.forEach(function(highlight) {
+        newHighlights.push(highlight.apply());
+      });
+
+      return newHighlights;
+    }
   }
 
-  /** Mark 标记 */
-  function Mark(tinter, characterRange, containerNode) {
+  /**
+   * Highlight 高亮
+   * @param {Tinter} tinter
+   * @param {CharacterRange} characterRange
+   * @param {string} containerElementId
+   * @constructor
+   */
+  function Highlight(tinter, characterRange, containerElementId) {
     this.tinter = tinter;
     this.characterRange = characterRange;
-    this.containerNode = containerNode;
+    this.containerElementId = containerElementId;
   }
 
-  Mark.prototype = {
+  Highlight.prototype = {
     apply: function() {
       this.tinter.applyToRange(this.getRange());
+      return this;
     },
     getRange: function() {
-      return characterRangeToRange(this.characterRange, this.containerNode);
+      return characterRangeToRange(this.characterRange, this.getContainerElement());
+    },
+    getContainerElement: function() {
+      return getContainerElement(this.containerElementId);
     }
   }
 
@@ -1181,7 +1222,34 @@
   }
 
   CharacterRange.prototype = {
+    /**
+     *
+     * @param {CharacterRange} otherCharRange
+     * @return {boolean}
+     */
+    intersects: function(otherCharRange) {
+      return this.start < otherCharRange.end && this.end > otherCharRange.start;
+    },
+    /**
+     *
+     * @param {CharacterRange} otherCharRange
+     * @return {boolean}
+     */
+    isContiguousWith: function(otherCharRange) {
+      return this.start === otherCharRange.end && this.end && otherCharRange.start
+    },
+    /**
+     *
+     * @param {CharacterRange} otherCharRange
+     * @return {CharacterRange}
+     *
+     */
+    union: function(otherCharRange) {
+      return new CharacterRange(Math.min(this.start, otherCharRange.start), Math.max(this.end, otherCharRange.end));
+    },
+    intersection: function() {
 
+    }
   }
 
   CharacterRange.fromCharacterRange = function(charRange) {
