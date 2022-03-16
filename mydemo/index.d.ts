@@ -45,11 +45,7 @@ interface Range {
    */
   intersection(sourceRange: Range): Range | null;
 
-  /**
-   *
-   * @param sourceRange
-   */
-  intersectsRange(sourceRange: Range): boolean;
+  union(sourceRange: Range): Range | null;
 
   /**
    *
@@ -158,7 +154,7 @@ interface RangeIterator {}
 interface Util {
   isRangeValid(): boolean;
   getNodesInRange<T extends Node>(range: Range, nodeTypes?: number[], filter?: (node: T) => boolean): T[];
-  rangesIntersect(rangeA: Range, rangeB: Range): boolean;
+  rangesIntersect(rangeA: Range, rangeB: Range, touchingIsIntersection: boolean): boolean;
 }
 
 interface Dom {
@@ -205,13 +201,17 @@ interface Highlighter {
 
 interface Highlight {
   prototype: Highlight;
-  new(tinter: Tinter, characterRange: CharacterRange, containerNode: Node): Highlight;
+  new(tinter: Tinter, characterRange: CharacterRange, containerElementId: string): Highlight;
   apply(): void;
 }
 
 interface CharacterRange {
   prototype: CharacterRange;
   new(start: number, end: number): CharacterRange
+  intersects(otherCharRange: CharacterRange): boolean;
+  isContiguousWith(otherCharRange: CharacterRange): boolean;
+  union(otherCharRange: CharacterRange): CharacterRange;
+  intersection(otherCharRange: CharacterRange): CharacterRange;
 }
 
 interface Aery {
