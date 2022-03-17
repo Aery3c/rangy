@@ -1149,43 +1149,35 @@
         throw new Error(`highlightCharacterRanges error: No tinter found for class "${className}"`);
       }
 
-      let highlightToKeep = [], highlightCharRange, isSameTinter, splitHighlight;
+
       characterRanges.forEach(function(characterRange) {
+        // forEach current all characterRange
         if (characterRange.start === characterRange.end) {
-          // Ignore empty selection
-          return false
+          // Igone empty characterRange
+          return false;
         }
 
-        // union
-        highlights.forEach(function(highlight) {
-          if (highlight.containerElementId === containerElementId) {
-            highlightCharRange = highlight.characterRange;
-            isSameTinter = (tinter === highlight.tinter);
-            splitHighlight = !isSameTinter;
-
-            if (
-              (highlightCharRange.intersects(characterRange) || highlightCharRange.isContiguousWith(characterRange))
-              && (isSameTinter || splitHighlight)
-            ) {
-              console.log(splitHighlight)
-            }
-
+        // diff existing highlights
+        for (let i = 0, highlight; (highlight = highlights[i]);) {
+          let highlightCharactRange = highlight.characterRange;
+          if (highlightCharactRange.intersects(characterRange) || highlightCharactRange.isContiguousWith(characterRange)) {
+            // union characterRange and highlightCharactRange
+            characterRange = characterRange.union(highlightCharactRange);
+            highlights.splice(i, 1);
+            i--;
           }
-        });
-
-        if (tinter) {
-          highlightToKeep.push(new Highlight(tinter, characterRange, containerElementId));
+          i++;
         }
+        highlights.push(new Highlight(tinter, characterRange, containerElementId));
+        // todo 将当前characterRange透出;
       });
 
-      this.highlights = highlights = highlightToKeep;
-
-      const newHighlights = [];
       highlights.forEach(function(highlight) {
-        newHighlights.push(highlight.apply());
+        highlight.apply();
       });
 
-      return newHighlights;
+      return highlights;
+
     }
   }
 
@@ -1236,7 +1228,7 @@
      * @return {boolean}
      */
     isContiguousWith: function(otherCharRange) {
-      return this.start === otherCharRange.end && this.end && otherCharRange.start
+      return this.start === otherCharRange.end || this.end === otherCharRange.start
     },
     /**
      *
@@ -1247,8 +1239,13 @@
     union: function(otherCharRange) {
       return new CharacterRange(Math.min(this.start, otherCharRange.start), Math.max(this.end, otherCharRange.end));
     },
-    intersection: function() {
-
+    /**
+     *
+     * @param {CharacterRange} otherCharRange
+     * @return {CharacterRange}
+     */
+    intersection: function(otherCharRange) {
+      return new CharacterRange(Math.max(this.start, otherCharRange.start), Math.min(this.end, otherCharRange.end));
     }
   }
 
