@@ -1149,13 +1149,15 @@
         throw new Error(`highlightCharacterRanges error: No tinter found for class "${className}"`);
       }
 
-
+      let highlightsToSelection = [], highlightsToRemove = [];
       characterRanges.forEach(function(characterRange) {
         // forEach current all characterRange
         if (characterRange.start === characterRange.end) {
           // Igone empty characterRange
           return false;
         }
+        const newHighlight = new Highlight(tinter, characterRange, containerElementId);
+        highlightsToSelection.push(newHighlight);
 
         // diff existing highlights
         for (let i = 0, highlight; (highlight = highlights[i]);) {
@@ -1164,20 +1166,24 @@
             // union characterRange and highlightCharactRange
             characterRange = characterRange.union(highlightCharactRange);
             highlights.splice(i, 1);
+            highlightsToRemove.push(highlight);
             i--;
           }
           i++;
         }
         highlights.push(new Highlight(tinter, characterRange, containerElementId));
-        // todo 将当前characterRange透出;
+
+      });
+
+      highlightsToRemove.forEach(function(highlightToRemove) {
+        highlightToRemove.unapply();
       });
 
       highlights.forEach(function(highlight) {
         highlight.apply();
       });
 
-      return highlights;
-
+      return highlightsToSelection;
     }
   }
 
@@ -1199,11 +1205,18 @@
       this.tinter.applyToRange(this.getRange());
       return this;
     },
+    unapply: function() {
+      this.tinter.undoToRange(this.getRange());
+      return this;
+    },
     getRange: function() {
       return characterRangeToRange(this.characterRange, this.getContainerElement());
     },
     getContainerElement: function() {
       return getContainerElement(this.containerElementId);
+    },
+    toString: function() {
+      return this.getRange().toString();
     }
   }
 
