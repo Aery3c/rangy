@@ -1109,6 +1109,7 @@
      */
     highlightSelection: function(className, options) {
       const tinter = this.tinters[className];
+      options = createOptions(options, {});
       const containerElementId = options.containerElementId;
       const containerElement = getContainerElement(containerElementId);
 
@@ -1141,7 +1142,10 @@
      */
     highlightCharacterRanges: function(className, characterRanges, options) {
       const tinter = this.tinters[className];
+      const highlighter = this;
       let highlights = this.highlights;
+
+      options = createOptions(options, {});
       const containerElementId = options.containerElementId;
       const containerElement = getContainerElement(containerElementId);
 
@@ -1149,41 +1153,47 @@
         throw new Error(`highlightCharacterRanges error: No tinter found for class "${className}"`);
       }
 
-      let highlightsToSelection = [], highlightsToRemove = [];
+      let highlightsToKeep;
+      // forEach current all characterRange
       characterRanges.forEach(function(characterRange) {
-        // forEach current all characterRange
+        highlightsToKeep = [];
         if (characterRange.start === characterRange.end) {
           // Igone empty characterRange
           return false;
         }
-        const newHighlight = new Highlight(tinter, characterRange, containerElementId);
-        highlightsToSelection.push(newHighlight);
 
-        // diff existing highlights
-        for (let i = 0, highlight; (highlight = highlights[i]);) {
-          let highlightCharactRange = highlight.characterRange;
-          if (highlightCharactRange.intersects(characterRange) || highlightCharactRange.isContiguousWith(characterRange)) {
-            // union characterRange and highlightCharactRange
-            characterRange = characterRange.union(highlightCharactRange);
-            highlights.splice(i, 1);
-            highlightsToRemove.push(highlight);
-            i--;
+        // characterRange diff highlights.item
+        highlights.forEach(function(highlight) {
+          let removeHighlight = false;
+          const highlightCharacterRange = highlight.characterRange;
+
+          if (highlightCharacterRange.intersects(characterRange) || highlightCharacterRange.isContiguousWith(characterRange)) {
+            characterRange = highlightCharacterRange.union(characterRange);
+            removeHighlight = true;
           }
-          i++;
-        }
-        highlights.push(new Highlight(tinter, characterRange, containerElementId));
 
+          if (removeHighlight) {
+
+          } else {
+            highlightsToKeep.push(highlight);
+          }
+        });
+
+        highlightsToKeep.push(new Highlight(tinter, characterRange, containerElementId));
+
+        highlighter.highlights = highlights = highlightsToKeep;
       });
 
-      highlightsToRemove.forEach(function(highlightToRemove) {
-        highlightToRemove.unapply();
-      });
-
+      const newHighlights = [];
       highlights.forEach(function(highlight) {
         highlight.apply();
+        newHighlights.push(highlight);
       });
 
-      return highlightsToSelection;
+      return newHighlights;
+    },
+    unhighlightSelection: function() {
+
     }
   }
 

@@ -197,11 +197,13 @@ interface Highlighter {
   highlightRanges(className: string, ranges: Range[], options: HighlightOptions): Highlight[];
   highlightCharacterRanges(className: string, characterRanges: CharacterRange[], options: HighlightOptions): Highlight[];
   highlightSelection(className: string, options?: HighlightOptions): Highlight[];
+  unhighlightSelection(): void;
 }
 
 interface Highlight {
   prototype: Highlight;
   new(tinter: Tinter, characterRange: CharacterRange, containerElementId: string): Highlight;
+  characterRange: CharacterRange;
   apply(): void;
 }
 
