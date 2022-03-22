@@ -203,7 +203,10 @@ interface Highlighter {
 interface Highlight {
   prototype: Highlight;
   new(tinter: Tinter, characterRange: CharacterRange, containerElementId: string): Highlight;
+  tinter: Tinter;
+  containerElementId: string;
   characterRange: CharacterRange;
+  applied: boolean;
   apply(): void;
 }
 
