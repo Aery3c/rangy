@@ -1163,9 +1163,9 @@
         }
 
         // characterRange diff highlights.item
-        highlights.forEach(function(highlight) {
+        highlights.forEach(function(highlight, index) {
           let removeHighlight = false;
-          const highlightCharacterRange = highlight.characterRange;
+          let highlightCharacterRange = highlight.characterRange;
 
           if (highlightCharacterRange.intersects(characterRange) || highlightCharacterRange.isContiguousWith(characterRange)) {
             characterRange = highlightCharacterRange.union(characterRange);
@@ -1173,7 +1173,7 @@
           }
 
           if (removeHighlight) {
-
+            highlights[index] = new Highlight(tinter, highlightCharacterRange.union(characterRange), containerElementId);
           } else {
             highlightsToKeep.push(highlight);
           }
@@ -1186,8 +1186,9 @@
 
       const newHighlights = [];
       highlights.forEach(function(highlight) {
-        highlight.apply();
-        newHighlights.push(highlight);
+        if (!highlight.applied) {
+          newHighlights.push(highlight.apply());
+        }
       });
 
       return newHighlights;
@@ -1208,15 +1209,18 @@
     this.tinter = tinter;
     this.characterRange = characterRange;
     this.containerElementId = containerElementId;
+    this.applied = false;
   }
 
   Highlight.prototype = {
     apply: function() {
       this.tinter.applyToRange(this.getRange());
+      this.applied = true;
       return this;
     },
     unapply: function() {
       this.tinter.undoToRange(this.getRange());
+      this.applied = false;
       return this;
     },
     getRange: function() {
