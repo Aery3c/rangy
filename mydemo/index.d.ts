@@ -197,7 +197,9 @@ interface Highlighter {
   highlightRanges(className: string, ranges: Range[], options: HighlightOptions): Highlight[];
   highlightCharacterRanges(className: string, characterRanges: CharacterRange[], options: HighlightOptions): Highlight[];
   highlightSelection(className: string, options?: HighlightOptions): Highlight[];
-  unhighlightSelection(): void;
+  unhighlightSelection(): Highlight[];
+  getIntersectingHighlights(ranges: Range[]): Highlight[];
+  removeHighlights(highlight: Highlight[]): void;
 }
 
 interface Highlight {
