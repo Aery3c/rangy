@@ -998,7 +998,6 @@
   extend(Node.prototype, nodeProto);
 
   extend(Selection.prototype, selProto);
-
   if (!Text.prototype.splitText) {
     Text.prototype.splitText = function(offset) {
       const newTextNode = this.cloneNode();
@@ -1153,10 +1152,11 @@
         throw new Error(`highlightCharacterRanges error: No tinter found for class "${className}"`);
       }
 
-      let highlightsToKeep;
+      let highlightsToKeep, highlightsToRemove;
       // forEach current all characterRange
       characterRanges.forEach(function(characterRange) {
         highlightsToKeep = [];
+        highlightsToRemove = [];
         if (characterRange.start === characterRange.end) {
           // Igone empty characterRange
           return false;
@@ -1173,6 +1173,7 @@
           }
 
           if (removeHighlight) {
+            highlightsToRemove.push(highlight);
             highlights[index] = new Highlight(tinter, highlightCharacterRange.union(characterRange), containerElementId);
           } else {
             highlightsToKeep.push(highlight);
@@ -1184,6 +1185,10 @@
         highlighter.highlights = highlights = highlightsToKeep;
       });
 
+      highlightsToRemove.forEach(function(highlightToRemove) {
+        highlightToRemove.unapply();
+      });
+
       const newHighlights = [];
       highlights.forEach(function(highlight) {
         if (!highlight.applied) {
@@ -1193,8 +1198,46 @@
 
       return newHighlights;
     },
+    /**
+     *
+     * @param {Highlight[]} highlights
+     */
+    removeHighlights: function(highlights) {
+      for (let i = 0, highlight; (highlight = this.highlights[i]); ++i) {
+        if (highlights.indexOf(highlight) !== -1) {
+          highlight.unapply();
+          this.highlights.splice(i--, 1);
+        }
+      }
+    },
+    /**
+     *
+     * @return {Highlight[]}
+     */
     unhighlightSelection: function() {
+      const selection = api.getSelection();
+      const intersectingHighlights = this.getIntersectingHighlights(selection.getAllRanges());
+      this.removeHighlights(intersectingHighlights);
+      selection.removeAllRanges();
+      return intersectingHighlights;
+    },
+    /**
+     *
+     * @param {Range[]} ranges
+     * @return {Highlight[]}
+     */
+    getIntersectingHighlights: function(ranges) {
+      const intersectingHighlights = [], highlights = this.highlights;
 
+      ranges.forEach(function(range) {
+        highlights.forEach(function(highlight) {
+          if (range.intersection(highlight.getRange()) && intersectingHighlights.indexOf(highlight) === -1) {
+            intersectingHighlights.push(highlight);
+          }
+        });
+      });
+
+      return intersectingHighlights;
     }
   }
 
